@@ -1006,7 +1006,7 @@ const Reader: React.FC<ReaderProps> = ({
   const [selectedChapterIndex, setSelectedChapterIndex] = useState<number | null>(null);
   const [bookText, setBookText] = useState('');
   const [isLoadingBookContent, setIsLoadingBookContent] = useState(false);
-  const [readerScrollbar, setReaderScrollbar] = useState({ visible: false, top: 0, height: 40 });
+  const [readerScrollbar, setReaderScrollbar] = useState({ visible: false, height: 40 });
   const [chapterTransitionClass, setChapterTransitionClass] = useState('');
   const [readerTypography, setReaderTypography] = useState<ReaderTypographyStyle>(() => getDefaultReaderTypography(isDarkMode));
   const [readerTextColorInput, setReaderTextColorInput] = useState(() => getDefaultReaderTypography(isDarkMode).textColor);
@@ -1044,6 +1044,7 @@ const Reader: React.FC<ReaderProps> = ({
   const readerViewportContainerRef = useRef<HTMLDivElement>(null);
   const readerScrollRef = useRef<HTMLDivElement>(null);
   const readerScrollbarTrackRef = useRef<HTMLDivElement>(null);
+  const readerScrollbarThumbRef = useRef<HTMLButtonElement>(null);
   const readerArticleRef = useRef<HTMLElement>(null);
   const readerFontDropdownRef = useRef<HTMLDivElement>(null);
   const tocListRef = useRef<HTMLDivElement>(null);
@@ -1093,6 +1094,11 @@ const Reader: React.FC<ReaderProps> = ({
   const latestReadingPositionRef = useRef<ReaderPositionState | null>(null);
   const areChapterImagesSettledRef = useRef(true);
   const programmaticRestoreScrollRef = useRef(false);
+  const readerScrollbarTopRef = useRef(0);
+  const readerScrollbarTopRafRef = useRef<number | null>(null);
+  const queuedReaderScrollbarTopRef = useRef<number | null>(null);
+  const readerScrollRafRef = useRef<number | null>(null);
+  const latestScrollTargetRef = useRef<HTMLDivElement | null>(null);
   const [, setIsVisualRestorePending] = useState(false);
   const [isRestorePositionPending, setIsRestorePositionPending] = useState(false);
 
@@ -1292,7 +1298,84 @@ const Reader: React.FC<ReaderProps> = ({
 
   const resolveClosestBookmarkId = (targetOffset: number) => resolveClosestBookmarkIdFromList(sortedBookmarks, targetOffset);
 
-  const refreshReaderScrollbar = () => {
+  const chapterTextOffsets = useMemo(() => {
+    if (chapters.length === 0) {
+      return {
+        starts: [0],
+        totalLength: 0,
+      };
+    }
+
+    const starts = new Array<number>(chapters.length + 1);
+    starts[0] = 0;
+    for (let index = 0; index < chapters.length; index += 1) {
+      starts[index + 1] = starts[index] + (chapters[index].content?.length || 0);
+    }
+
+    return {
+      starts,
+      totalLength: starts[chapters.length],
+    };
+  }, [chapters]);
+
+  const getChapterStartOffsetByIndex = useCallback(
+    (chapterIndex: number) => {
+      if (chapterIndex <= 0) return 0;
+      const maxIndex = chapterTextOffsets.starts.length - 1;
+      const safeIndex = Math.max(0, Math.min(chapterIndex, maxIndex));
+      return chapterTextOffsets.starts[safeIndex] || 0;
+    },
+    [chapterTextOffsets.starts]
+  );
+
+  const resolveChapterPositionFromGlobalOffsetFast = useCallback(
+    (globalOffset: number) => {
+      const totalLength = chapters.length > 0 ? chapterTextOffsets.totalLength : bookText.length;
+      const clampedOffset = clamp(Math.round(globalOffset), 0, totalLength);
+      if (chapters.length === 0) {
+        return { chapterIndex: null as number | null, chapterCharOffset: clampedOffset };
+      }
+
+      for (let index = 0; index < chapters.length; index += 1) {
+        const chapterStart = chapterTextOffsets.starts[index] || 0;
+        const chapterEnd = chapterTextOffsets.starts[index + 1] || chapterStart;
+        if (clampedOffset <= chapterEnd || index === chapters.length - 1) {
+          return {
+            chapterIndex: index,
+            chapterCharOffset: clamp(clampedOffset - chapterStart, 0, Math.max(0, chapterEnd - chapterStart)),
+          };
+        }
+      }
+
+      const fallbackIndex = Math.max(0, chapters.length - 1);
+      const fallbackStart = chapterTextOffsets.starts[fallbackIndex] || 0;
+      const fallbackEnd = chapterTextOffsets.starts[fallbackIndex + 1] || fallbackStart;
+      return {
+        chapterIndex: fallbackIndex,
+        chapterCharOffset: clamp(clampedOffset - fallbackStart, 0, Math.max(0, fallbackEnd - fallbackStart)),
+      };
+    },
+    [chapters, bookText.length, chapterTextOffsets]
+  );
+
+  const scheduleReaderScrollbarTop = useCallback((nextTop: number) => {
+    queuedReaderScrollbarTopRef.current = nextTop;
+    if (readerScrollbarTopRafRef.current !== null) return;
+    readerScrollbarTopRafRef.current = window.requestAnimationFrame(() => {
+      readerScrollbarTopRafRef.current = null;
+      const queuedTop = queuedReaderScrollbarTopRef.current;
+      if (queuedTop === null) return;
+      queuedReaderScrollbarTopRef.current = null;
+      if (Math.abs(readerScrollbarTopRef.current - queuedTop) < 0.2) return;
+      readerScrollbarTopRef.current = queuedTop;
+      const thumb = readerScrollbarThumbRef.current;
+      if (thumb) {
+        thumb.style.transform = `translateY(${queuedTop}px)`;
+      }
+    });
+  }, []);
+
+  const refreshReaderScrollbar = useCallback(() => {
     const scroller = readerScrollRef.current;
     if (!scroller) return;
 
@@ -1300,7 +1383,9 @@ const Reader: React.FC<ReaderProps> = ({
     const contentScrollable = scrollHeight - clientHeight;
 
     if (contentScrollable <= 1) {
-      setReaderScrollbar(prev => (prev.visible ? { ...prev, visible: false, top: 0 } : prev));
+      readerScrollbarTopRef.current = 0;
+      queuedReaderScrollbarTopRef.current = null;
+      setReaderScrollbar((prev) => (prev.visible ? { ...prev, visible: false } : prev));
       return;
     }
 
@@ -1309,15 +1394,19 @@ const Reader: React.FC<ReaderProps> = ({
     const trackScrollable = Math.max(1, trackHeight - thumbHeight);
     const clampedScrollTop = clamp(scrollTop, 0, contentScrollable);
     const thumbTop = clamp((clampedScrollTop / contentScrollable) * trackScrollable, 0, trackScrollable);
+    scheduleReaderScrollbarTop(thumbTop);
 
-    setReaderScrollbar({
-      visible: true,
-      top: thumbTop,
-      height: thumbHeight,
+    setReaderScrollbar((prev) => {
+      const heightChanged = Math.abs(prev.height - thumbHeight) >= 0.5;
+      if (prev.visible && !heightChanged) return prev;
+      return {
+        visible: true,
+        height: thumbHeight,
+      };
     });
-  };
+  }, [scheduleReaderScrollbarTop]);
 
-  const getCurrentReadingPosition = (timestamp = Date.now()): ReaderPositionState | null => {
+  const getCurrentReadingPosition = useCallback((timestamp = Date.now()): ReaderPositionState | null => {
     if (!activeBook) return null;
 
     const hasChapters = chapters.length > 0;
@@ -1339,8 +1428,8 @@ const Reader: React.FC<ReaderProps> = ({
         : 0;
 
     const chapterCharOffset = chapterLength > 0 ? clamp(Math.round(chapterLength * scrollRatio), 0, chapterLength) : 0;
-    const totalLength = getTotalTextLength(chapters, bookText);
-    const chapterStartOffset = resolvedChapterIndex !== null ? getChapterStartOffset(chapters, resolvedChapterIndex) : 0;
+    const totalLength = chapters.length > 0 ? chapterTextOffsets.totalLength : bookText.length;
+    const chapterStartOffset = resolvedChapterIndex !== null ? getChapterStartOffsetByIndex(resolvedChapterIndex) : 0;
     const globalCharOffset = clamp(chapterStartOffset + chapterCharOffset, 0, totalLength);
 
     return {
@@ -1351,14 +1440,44 @@ const Reader: React.FC<ReaderProps> = ({
       totalLength,
       updatedAt: timestamp,
     };
-  };
+  }, [activeBook, chapters, selectedChapterIndex, bookText, chapterTextOffsets.totalLength, getChapterStartOffsetByIndex]);
 
-  const syncReadingPositionRef = (timestamp = Date.now()) => {
+  const syncReadingPositionRef = useCallback((timestamp = Date.now()) => {
     const snapshot = getCurrentReadingPosition(timestamp);
     if (!snapshot) return null;
     latestReadingPositionRef.current = snapshot;
     return snapshot;
-  };
+  }, [getCurrentReadingPosition]);
+
+  const getLatestReadingPosition = useCallback(
+    () => syncReadingPositionRef(Date.now()) || latestReadingPositionRef.current,
+    [syncReadingPositionRef]
+  );
+
+  const scheduleScrollMetricsSync = useCallback((target: HTMLDivElement) => {
+    latestScrollTargetRef.current = target;
+    if (readerScrollRafRef.current !== null) return;
+    readerScrollRafRef.current = window.requestAnimationFrame(() => {
+      readerScrollRafRef.current = null;
+      const scroller = latestScrollTargetRef.current || readerScrollRef.current;
+      if (!scroller) return;
+      refreshReaderScrollbar();
+      syncReadingPositionRef(Date.now());
+    });
+  }, [refreshReaderScrollbar, syncReadingPositionRef]);
+
+  useEffect(() => {
+    return () => {
+      if (readerScrollbarTopRafRef.current !== null) {
+        window.cancelAnimationFrame(readerScrollbarTopRafRef.current);
+        readerScrollbarTopRafRef.current = null;
+      }
+      if (readerScrollRafRef.current !== null) {
+        window.cancelAnimationFrame(readerScrollRafRef.current);
+        readerScrollRafRef.current = null;
+      }
+    };
+  }, []);
 
   const resolveReadingTargetFromPosition = (position: ReaderPositionState) => {
     const hasChapters = chapters.length > 0;
@@ -1375,7 +1494,7 @@ const Reader: React.FC<ReaderProps> = ({
         const chapterLength = chapters[nextChapterIndex].content?.length || 0;
         nextChapterOffset = clamp(position.chapterCharOffset, 0, chapterLength);
       } else {
-        const resolved = resolveChapterPositionFromGlobalOffset(chapters, position.globalCharOffset);
+        const resolved = resolveChapterPositionFromGlobalOffsetFast(position.globalCharOffset);
         nextChapterIndex = resolved.chapterIndex;
         nextChapterOffset = resolved.chapterCharOffset;
       }
@@ -1390,8 +1509,8 @@ const Reader: React.FC<ReaderProps> = ({
         ? chapters[nextChapterIndex]?.content || bookText
         : bookText;
     const chapterLength = nextBookText.length;
-    const totalLength = getTotalTextLength(chapters, bookText);
-    const chapterStartOffset = nextChapterIndex !== null ? getChapterStartOffset(chapters, nextChapterIndex) : 0;
+    const totalLength = chapters.length > 0 ? chapterTextOffsets.totalLength : bookText.length;
+    const chapterStartOffset = nextChapterIndex !== null ? getChapterStartOffsetByIndex(nextChapterIndex) : 0;
     const globalCharOffset = clamp(chapterStartOffset + nextChapterOffset, 0, totalLength);
     const derivedRatio = chapterLength > 0 ? nextChapterOffset / chapterLength : 0;
     const normalizedRatio = position.scrollRatio > 0 ? position.scrollRatio : derivedRatio;
@@ -2773,12 +2892,11 @@ const Reader: React.FC<ReaderProps> = ({
 
   const handleReaderScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
-    refreshReaderScrollbar();
+    scheduleScrollMetricsSync(target);
 
     const prevTop = lastReaderScrollTopRef.current;
     const currTop = target.scrollTop;
     lastReaderScrollTopRef.current = currTop;
-    syncReadingPositionRef(Date.now());
     if (programmaticRestoreScrollRef.current) return;
 
     const { nearTop, nearBottom, noScrollableContent } = canTriggerBoundarySwitch(target);
@@ -5105,6 +5223,7 @@ const Reader: React.FC<ReaderProps> = ({
         {readerScrollbar.visible && (
           <div ref={readerScrollbarTrackRef} className="absolute right-1.5 top-3 bottom-3 w-1 z-10 pointer-events-none overflow-hidden rounded-full">
             <button
+              ref={readerScrollbarThumbRef}
               type="button"
               aria-label="reader-scrollbar-thumb"
               onPointerDown={handleReaderThumbPointerDown}
@@ -5115,7 +5234,7 @@ const Reader: React.FC<ReaderProps> = ({
               }`}
               style={{
                 height: `${readerScrollbar.height}px`,
-                transform: `translateY(${readerScrollbar.top}px)`,
+                transform: `translateY(${readerScrollbarTopRef.current}px)`,
               }}
             />
           </div>
@@ -5156,7 +5275,7 @@ const Reader: React.FC<ReaderProps> = ({
         onAddAiUnderlineRange={handleAddAiUnderlineRange}
         onRollbackAiUnderlineGeneration={handleRollbackAiUnderlineGeneration}
         readerContentRef={readerScrollRef}
-        getLatestReadingPosition={() => syncReadingPositionRef(Date.now()) || latestReadingPositionRef.current}
+        getLatestReadingPosition={getLatestReadingPosition}
         isMoreSettingsOpen={isMoreSettingsOpen}
         onCloseMoreSettings={() => setIsMoreSettingsOpen(false)}
         ragApiConfigResolver={ragApiConfigResolver}

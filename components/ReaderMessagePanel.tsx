@@ -2603,9 +2603,14 @@ const ReaderMessagePanel: React.FC<ReaderMessagePanelProps> = ({
       activeChapterRenderedText,
     });
   };
+  const sessionPromptTokenEstimateRef = useRef<PromptTokenEstimate>({
+    totalTokens: 0,
+    sections: [],
+  });
   const sessionPromptTokenEstimate: PromptTokenEstimate = useMemo(() => {
+    if (!isMoreSettingsOpen) return sessionPromptTokenEstimateRef.current;
     const readingContext = buildReadingContext();
-    return estimateConversationPromptTokens({
+    const nextEstimate = estimateConversationPromptTokens({
       mode: 'manual',
       sourceMessages: messages,
       readingContext,
@@ -2625,7 +2630,10 @@ const ReaderMessagePanel: React.FC<ReaderMessagePanelProps> = ({
       replyBubbleMin: readerMoreFeature.replyBubbleMin,
       replyBubbleMax: readerMoreFeature.replyBubbleMax,
     });
+    sessionPromptTokenEstimateRef.current = nextEstimate;
+    return nextEstimate;
   }, [
+    isMoreSettingsOpen,
     messages,
     aiProactiveUnderlineEnabled,
     aiProactiveUnderlineProbability,
