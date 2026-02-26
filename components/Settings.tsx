@@ -297,22 +297,39 @@ const Settings: React.FC<SettingsProps> = ({
     if (archiveExporting || archiveImporting) return;
     setArchiveExporting(true);
     try {
-      const payload = await createAppArchivePayload();
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
+      const EXPORT_TIMEOUT = 120_000;
+      const payloadPromise = createAppArchivePayload();
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('导出超时，数据量可能过大')), EXPORT_TIMEOUT)
+      );
+      const payload = await Promise.race([payloadPromise, timeoutPromise]);
+      const json = JSON.stringify(payload);
+      const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
       const date = new Date();
       const pad = (value: number) => `${value}`.padStart(2, '0');
       const fileName = `读点书-${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}.json`;
+
+      if (typeof navigator.share === 'function' && navigator.canShare?.({ files: [new File([], '')] })) {
+        const file = new File([blob], fileName, { type: blob.type });
+        try {
+          await navigator.share({ files: [file] });
+          return;
+        } catch {
+          /* user cancelled or not supported, fall through to anchor */
+        }
+      }
+
+      const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
       anchor.download = fileName;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (error) {
       console.error('Failed to export archive:', error);
-      alert('导出失败，请稍后重试。');
+      alert(error instanceof Error ? `导出失败：${error.message}` : '导出失败，请稍后重试。');
     } finally {
       setArchiveExporting(false);
     }

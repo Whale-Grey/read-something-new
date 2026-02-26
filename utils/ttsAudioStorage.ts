@@ -266,11 +266,20 @@ export async function getTtsAudioStorageUsageBytes(): Promise<{ totalBytes: numb
 
 // ─── Archive Export / Import ───
 
+const uint8ArrayToBase64 = (bytes: Uint8Array): string => {
+  const CHUNK = 0x8000;
+  const parts: string[] = [];
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    parts.push(String.fromCharCode(...bytes.subarray(i, i + CHUNK)));
+  }
+  return btoa(parts.join(''));
+};
+
 export async function exportTtsAudioForArchive(): Promise<Record<string, { audio: string; meta: Omit<StoredTtsAudioEntry, 'audioBlob' | 'key'> }>> {
   const db = await openDb();
 
-  const entries: Array<{ key: string; entry: StoredTtsAudioEntry }> = await new Promise((resolve, reject) => {
-    const results: Array<{ key: string; entry: StoredTtsAudioEntry }> = [];
+  const keys: string[] = await new Promise((resolve, reject) => {
+    const collected: string[] = [];
     const tx = db.transaction(TTS_AUDIO_STORE, 'readonly');
     const store = tx.objectStore(TTS_AUDIO_STORE);
     const request = store.openCursor();
@@ -278,27 +287,29 @@ export async function exportTtsAudioForArchive(): Promise<Record<string, { audio
     request.onsuccess = () => {
       const cursor = request.result;
       if (!cursor) return;
-      const entry = cursor.value as StoredTtsAudioEntry;
-      if (entry?.audioBlob instanceof Blob) {
-        results.push({ key: cursor.key as string, entry });
+      if (cursor.value?.audioBlob instanceof Blob) {
+        collected.push(cursor.key as string);
       }
       cursor.continue();
     };
 
-    tx.oncomplete = () => resolve(results);
+    tx.oncomplete = () => resolve(collected);
     tx.onerror = () => reject(tx.error || new Error('导出 TTS 音频失败'));
   });
 
   const result: Record<string, { audio: string; meta: Omit<StoredTtsAudioEntry, 'audioBlob' | 'key'> }> = {};
 
-  for (const { key, entry } of entries) {
+  for (const key of keys) {
+    const entry: StoredTtsAudioEntry | null = await new Promise((resolve, reject) => {
+      const tx = db.transaction(TTS_AUDIO_STORE, 'readonly');
+      const req = tx.objectStore(TTS_AUDIO_STORE).get(key);
+      req.onsuccess = () => resolve(req.result ?? null);
+      req.onerror = () => reject(req.error);
+    });
+    if (!entry?.audioBlob || !(entry.audioBlob instanceof Blob)) continue;
+
     const arrayBuffer = await entry.audioBlob.arrayBuffer();
-    const bytes = new Uint8Array(arrayBuffer);
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    const base64 = btoa(binary);
+    const base64 = uint8ArrayToBase64(new Uint8Array(arrayBuffer));
 
     const { audioBlob: _, key: _k, ...meta } = entry;
     result[key] = { audio: base64, meta };

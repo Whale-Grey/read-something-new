@@ -179,32 +179,37 @@ export const getAllImageRefsAndSizes = async (): Promise<Record<string, number>>
 export const exportAllImagesAsDataUrls = async (): Promise<Record<string, string>> => {
   const db = await openImageDb();
 
-  return new Promise((resolve, reject) => {
+  const keys: IDBValidKey[] = await new Promise((resolve, reject) => {
+    const collected: IDBValidKey[] = [];
     const tx = db.transaction(IMAGE_DB_STORE, 'readonly');
     const store = tx.objectStore(IMAGE_DB_STORE);
     const request = store.openCursor();
-    const result: Record<string, string> = {};
-    const pending: Array<Promise<void>> = [];
 
     request.onsuccess = () => {
       const cursor = request.result;
-      if (!cursor) {
-        Promise.all(pending)
-          .then(() => resolve(result))
-          .catch(reject);
-        return;
-      }
+      if (!cursor) return;
       if (cursor.value instanceof Blob) {
-        const imageRef = `${IMAGE_REF_PREFIX}${cursor.key}`;
-        const blob = cursor.value;
-        pending.push(
-          blobToDataUrl(blob).then((dataUrl) => {
-            result[imageRef] = dataUrl;
-          })
-        );
+        collected.push(cursor.key);
       }
       cursor.continue();
     };
-    request.onerror = () => reject(request.error || new Error('Failed to export images'));
+    tx.oncomplete = () => resolve(collected);
+    tx.onerror = () => reject(tx.error || new Error('Failed to export images'));
   });
+
+  const result: Record<string, string> = {};
+
+  for (const key of keys) {
+    const blob: Blob | null = await new Promise((resolve, reject) => {
+      const tx = db.transaction(IMAGE_DB_STORE, 'readonly');
+      const req = tx.objectStore(IMAGE_DB_STORE).get(key);
+      req.onsuccess = () => resolve(req.result instanceof Blob ? req.result : null);
+      req.onerror = () => reject(req.error);
+    });
+    if (!blob) continue;
+    const imageRef = `${IMAGE_REF_PREFIX}${key}`;
+    result[imageRef] = await blobToDataUrl(blob);
+  }
+
+  return result;
 };
