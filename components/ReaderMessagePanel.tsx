@@ -1242,10 +1242,8 @@ const ReaderMessagePanel: React.FC<ReaderMessagePanelProps> = ({
               messageSlice || '（空）',
             ].join('\n');
           }
-          const fullBookText = sanitizeTextForAiPrompt(
-            chapters.length > 0 ? chapters.map((chapter) => chapter.content || '').join('') : (bookText || '')
-          );
-          const excerpt = fullBookText.slice(sliceStart, sliceEnd);
+          const rawBookText = chapters.length > 0 ? chapters.map((chapter) => chapter.content || '').join('') : (bookText || '');
+          const excerpt = sanitizeTextForAiPrompt(rawBookText.slice(sliceStart, sliceEnd));
           return [
             '【任务】将以下书籍片段按内容分段总结。',
             '',
