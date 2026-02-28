@@ -208,6 +208,26 @@ export interface QuizSession {
   completedAt?: number;
 }
 
+// ─── 共读集：收藏消息 ───
+
+export interface FavoriteQuote {
+  id: string;
+  content: string;
+  sender: 'user' | 'character';
+  senderName: string;
+  characterId: string;
+  characterName: string;
+  characterAvatar: string;
+  personaId: string;
+  personaName: string;
+  bookId: string | null;
+  bookTitle: string;
+  conversationKey: string;
+  sourceMessageId: string;
+  sourceMessageTimestamp: number;
+  createdAt: number;
+}
+
 export type ApiProvider = 'OPENAI' | 'DEEPSEEK' | 'GEMINI' | 'CLAUDE' | 'CUSTOM';
 
 export interface ApiConfig {

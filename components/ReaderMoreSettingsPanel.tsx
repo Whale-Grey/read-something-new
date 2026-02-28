@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Check, ChevronDown, Trash2, AlertTriangle, Image as ImageIcon, Link as LinkIcon, Loader2, X, RefreshCw, Save, Edit2, Paintbrush, Wrench, MessageSquareText, Eraser, Volume2, Play, Square, Download, HelpCircle } from 'lucide-react';
-import { ApiPreset, AppSettings, ReaderBookState, ReaderSummaryCard, TtsConfig, TtsPlaybackState } from '../types';
+import { ArrowLeft, Check, ChevronDown, Trash2, AlertTriangle, Image as ImageIcon, Link as LinkIcon, Loader2, X, RefreshCw, Save, Edit2, Paintbrush, Wrench, MessageSquareText, Eraser, Volume2, Play, Square, Download, HelpCircle, Star, Copy, ChevronUp } from 'lucide-react';
+import { ApiPreset, AppSettings, FavoriteQuote, ReaderBookState, ReaderSummaryCard, TtsConfig, TtsPlaybackState } from '../types';
 import type { TtsPreset } from '../types';
 import { validateTtsConfig } from '../utils/ttsEngine';
 import ResolvedImage from './ResolvedImage';
@@ -90,6 +90,9 @@ interface Props {
   onTtsResumeFromSaved: () => void;
   ttsExportChapterOptions: TtsExportChapterOption[];
   onTtsExportAudiobook: (chapterIndices: number[], includeSubtitles: boolean) => Promise<TtsAudiobookExportResult>;
+  favoriteQuotes: FavoriteQuote[];
+  onDeleteFavoriteQuote: (id: string) => void;
+  onExportConversation: () => void;
 }
 
 const TAB_ITEMS: Array<{ key: TabKey; label: string; icon: React.ComponentType<{ size?: number }> }> = [
@@ -470,6 +473,9 @@ const ReaderMoreSettingsPanel: React.FC<Props> = (props) => {
     onTtsResumeFromSaved,
     ttsExportChapterOptions,
     onTtsExportAudiobook,
+    favoriteQuotes,
+    onDeleteFavoriteQuote,
+    onExportConversation,
   } = props;
 
   const [tab, setTab] = useState<TabKey>('appearance');
@@ -492,6 +498,8 @@ const ReaderMoreSettingsPanel: React.FC<Props> = (props) => {
   const [isExportingTtsAudiobook, setIsExportingTtsAudiobook] = useState(false);
   const [ttsExportStatus, setTtsExportStatus] = useState<{ text: string; skippedReasons: string[] } | null>(null);
   const [showPanelClipHelp, setShowPanelClipHelp] = useState(false);
+  const [showFavorites, setShowFavorites] = useState(false);
+  const [favCopiedId, setFavCopiedId] = useState<string | null>(null);
   const [cssApplySuccess, setCssApplySuccess] = useState(false);
   const [cssClearSuccess, setCssClearSuccess] = useState(false);
   const [cssSaveSuccess, setCssSaveSuccess] = useState(false);
@@ -1585,6 +1593,99 @@ const ReaderMoreSettingsPanel: React.FC<Props> = (props) => {
                       >
                         聊天记录总结
                       </button>
+                    </div>
+
+                    <div className="w-full h-[1px] bg-slate-300/20 my-0" />
+
+                    {/* 导出对话记录 */}
+                    <div className="py-5">
+                      <button
+                        type="button"
+                        onClick={onExportConversation}
+                        className={`w-full h-10 rounded-xl text-sm font-bold flex items-center justify-center gap-2 text-rose-400 ${btnClass} ${activeBtnClass} transition-all`}
+                      >
+                        <Download size={14} />
+                        导出对话记录
+                      </button>
+                    </div>
+
+                    <div className="w-full h-[1px] bg-slate-300/20 my-0" />
+
+                    {/* 收藏消息 */}
+                    <div className="py-5">
+                      <button
+                        type="button"
+                        onClick={() => setShowFavorites((v) => !v)}
+                        className="flex items-center justify-between w-full"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Star size={14} className="text-rose-400" fill="currentColor" />
+                          <span className={`text-sm font-bold ${headingClass}`}>收藏消息</span>
+                          <span className="text-xs text-slate-500">({favoriteQuotes.length})</span>
+                        </div>
+                        <ChevronUp
+                          size={14}
+                          className={`text-slate-400 transition-transform duration-300 ${showFavorites ? '' : 'rotate-180'}`}
+                        />
+                      </button>
+
+                      <div className={`grid transition-[grid-template-rows] duration-300 ${showFavorites ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                        <div className="overflow-hidden">
+                          <div className="pt-3 space-y-2.5">
+                            {favoriteQuotes.length === 0 ? (
+                              <div className="text-center text-xs text-slate-500 py-4">
+                                长按聊天消息，点击 <Star size={12} className="inline-block text-rose-400 align-text-bottom" /> 即可收藏
+                              </div>
+                            ) : (
+                              favoriteQuotes.map((fq) => (
+                                <div
+                                  key={fq.id}
+                                  className={`rounded-xl p-3 ${
+                                    isDarkMode ? 'bg-[#1a202c]' : 'bg-white'
+                                  }`}
+                                >
+                                  <div className={`text-sm leading-relaxed ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                                    {fq.content.length > 120 ? `${fq.content.slice(0, 120)}...` : fq.content}
+                                  </div>
+                                  <div className="flex items-center justify-between mt-2">
+                                    <div className="text-[11px] text-slate-500 truncate max-w-[60%]">
+                                      {fq.senderName} · {ts(fq.sourceMessageTimestamp)}
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          try {
+                                            await navigator.clipboard.writeText(fq.content);
+                                            setFavCopiedId(fq.id);
+                                            setTimeout(() => setFavCopiedId(null), 1500);
+                                          } catch { /* ignore */ }
+                                        }}
+                                        className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                                          isDarkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-200 text-slate-500'
+                                        }`}
+                                        title="复制"
+                                      >
+                                        {favCopiedId === fq.id ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => onDeleteFavoriteQuote(fq.id)}
+                                        className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                                          isDarkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-200 text-slate-500'
+                                        }`}
+                                        title="删除"
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}

@@ -12,7 +12,7 @@ import {
 
 export const BUILT_IN_TUTORIAL_BOOK_ID = '__built_in_tutorial__';
 /** Bump this number whenever tutorial content is changed so existing users get the update. */
-export const BUILT_IN_TUTORIAL_VERSION = 3.8;
+export const BUILT_IN_TUTORIAL_VERSION = 4.0;
 
 const TUTORIAL_UNREAD_KEY = '__built_in_tutorial_unread__';
 export const isTutorialUnread = (): boolean => {
@@ -36,6 +36,18 @@ const img = (imageRef: string, alt: string, w?: number, h?: number): ReaderConte
 /*  更新记录                                                            */
 /* ------------------------------------------------------------------ */
 const CH0_CONTENT = `更新记录
+
+-更新时间：2026.02.28
+
+本次更新内容：
+
+1.新增支持mobi格式书籍导入
+
+2.新增收藏消息功能
+长按消息点击收藏图标后可以收藏该条消息，可在阅读界面右上角的更多设置-会话中查看收藏消息列表。
+
+3.新增会话记录导出为txt
+在更多设置-会话中可以导出当前与char的会话记录为txt。
 
 -更新时间：2026.02.27
 
@@ -102,6 +114,16 @@ const CH0_CONTENT = `更新记录
 
 const CH0_BLOCKS: ReaderContentBlock[] = [
   text('更新记录'),
+  text(`-更新时间：2026.02.28`),
+  text(`本次更新内容：
+
+1.新增支持mobi格式书籍导入
+
+2.新增收藏消息功能
+长按消息点击收藏图标后可以收藏该条消息，可在阅读界面右上角的更多设置-会话中查看收藏消息列表。
+
+3.新增会话记录导出为txt
+在更多设置-会话中可以导出当前与char的会话记录为txt。`),
   text(`-更新时间：2026.02.27`),
   text(`本次更新内容：
 

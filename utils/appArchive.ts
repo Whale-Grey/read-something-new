@@ -1,5 +1,5 @@
 import { StoredBookContent, getAllBookContents, getBookContentStorageUsageBytes, replaceAllBookContents } from './bookContentStorage';
-import { Notebook, QuizSession } from '../types';
+import { Notebook, QuizSession, FavoriteQuote } from '../types';
 import {
   exportChatHistoryForArchive,
   getChatHistoryStorageUsageBytes,
@@ -291,6 +291,7 @@ export interface AppArchivePayload {
     studyHub: {
       notebooks: Notebook[];
       quizSessions: QuizSession[];
+      favoriteQuotes: FavoriteQuote[];
     };
     ttsAudio?: Record<string, { audio: string; meta: Record<string, unknown> }>;
   };
@@ -314,6 +315,7 @@ export const createAppArchivePayload = async (): Promise<AppArchivePayload> => {
   const studyHub = {
     notebooks: Array.isArray(studyHubRaw?.notebooks) ? studyHubRaw.notebooks : [],
     quizSessions: Array.isArray(studyHubRaw?.quizSessions) ? studyHubRaw.quizSessions : [],
+    favoriteQuotes: Array.isArray(studyHubRaw?.favoriteQuotes) ? studyHubRaw.favoriteQuotes : [],
   };
   let ttsAudio: Record<string, { audio: string; meta: Record<string, unknown> }> = {};
   try {
@@ -417,6 +419,7 @@ const normalizeArchivePayload = (raw: unknown): AppArchivePayload => {
   const studyHub = {
     notebooks: (Array.isArray(studyHubSource.notebooks) ? studyHubSource.notebooks : []) as Notebook[],
     quizSessions: (Array.isArray(studyHubSource.quizSessions) ? studyHubSource.quizSessions : []) as QuizSession[],
+    favoriteQuotes: (Array.isArray(studyHubSource.favoriteQuotes) ? studyHubSource.favoriteQuotes : []) as FavoriteQuote[],
   };
 
   // TTS audio (optional, backwards-compatible with older archives)

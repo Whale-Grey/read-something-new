@@ -7,15 +7,17 @@ import {
   RotateCcw,
   Send,
   Square,
+  Star,
   Trash2,
   X,
 } from 'lucide-react';
-import { ApiConfig, ApiPreset, AppSettings, Book, Chapter, RagApiConfigResolver, ReaderBookState, ReaderSummaryCard, ReaderHighlightRange, ReaderPositionState, TtsConfig, TtsPlaybackState } from '../types';
+import { ApiConfig, ApiPreset, AppSettings, Book, Chapter, FavoriteQuote, RagApiConfigResolver, ReaderBookState, ReaderSummaryCard, ReaderHighlightRange, ReaderPositionState, TtsConfig, TtsPlaybackState } from '../types';
 import type { TtsPreset } from '../types';
 import { Character, Persona, WorldBookEntry } from './settings/types';
 import ResolvedImage from './ResolvedImage';
 import ReaderMoreSettingsPanel, { ReaderArchiveOption } from './ReaderMoreSettingsPanel';
 import { deleteImageByRef, saveImageFile } from '../utils/imageStorage';
+import { saveFavoriteQuote, getAllFavoriteQuotes, deleteFavoriteQuote } from '../utils/studyHubStorage';
 import { getBookContent, saveBookSummaryState } from '../utils/bookContentStorage';
 import {
   abortConversationGeneration,
@@ -535,6 +537,7 @@ const ReaderMessagePanel: React.FC<ReaderMessagePanelProps> = ({
   const [fabBottomPx, setFabBottomPx] = useState(24);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [contextMenuLayout, setContextMenuLayout] = useState<{ left: number; top: number } | null>(null);
+  const [favoritedMessageIds, setFavoritedMessageIds] = useState<Set<string>>(new Set());
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [quotedMessageId, setQuotedMessageId] = useState<string | null>(null);
   const [isDeleteMode, setIsDeleteMode] = useState(false);
@@ -852,6 +855,139 @@ const ReaderMessagePanel: React.FC<ReaderMessagePanelProps> = ({
     lockToastAtRef.current = now;
     showToast(`${conversationLockMessage}，无法继续聊天`, 'error');
   }, [conversationLockMessage, showToast]);
+
+  // ─── Favorite Quotes ───
+  const [favoriteQuotesList, setFavoriteQuotesList] = useState<FavoriteQuote[]>([]);
+
+  // Favorites filtered to the current conversation (follows the active archive)
+  const currentConversationFavorites = useMemo(
+    () => favoriteQuotesList
+      .filter((q) => q.conversationKey === conversationKey)
+      .sort((a, b) => (b.sourceMessageTimestamp || 0) - (a.sourceMessageTimestamp || 0)),
+    [favoriteQuotesList, conversationKey]
+  );
+
+  // Reload favorites whenever the conversationKey changes (i.e. switch archive)
+  useEffect(() => {
+    let cancelled = false;
+    const loadFavorites = async () => {
+      try {
+        const allQuotes = await getAllFavoriteQuotes();
+        if (!cancelled) {
+          setFavoritedMessageIds(new Set(allQuotes.map((q) => q.sourceMessageId)));
+          setFavoriteQuotesList(allQuotes);
+        }
+      } catch { /* ignore */ }
+    };
+    void loadFavorites();
+    return () => { cancelled = true; };
+  }, [conversationKey]);
+
+  const handleToggleFavorite = useCallback((bubbleId: string) => {
+    const target = messages.find((m) => m.id === bubbleId);
+    if (!target) { setContextMenu(null); return; }
+
+    const isFavorited = favoritedMessageIds.has(bubbleId);
+
+    // Close menu immediately
+    setContextMenu(null);
+
+    if (isFavorited) {
+      // Optimistic UI update first
+      const match = favoriteQuotesList.find((q) => q.sourceMessageId === bubbleId);
+      setFavoritedMessageIds((prev) => { const next = new Set(prev); next.delete(bubbleId); return next; });
+      if (match) setFavoriteQuotesList((prev) => prev.filter((q) => q.id !== match.id));
+      showToast('已取消收藏');
+      // Persist to DB in background (non-blocking)
+      if (match) {
+        deleteFavoriteQuote(match.id).catch(() => {
+          // Rollback on failure
+          setFavoritedMessageIds((prev) => new Set(prev).add(bubbleId));
+          setFavoriteQuotesList((prev) => [match, ...prev]);
+          showToast('操作失败', 'error');
+        });
+      }
+    } else {
+      const quote: FavoriteQuote = {
+        id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        content: target.content,
+        sender: target.sender,
+        senderName: target.sender === 'user' ? userNickname : characterNickname,
+        characterId: activeCharacterId || '',
+        characterName: characterRealName,
+        characterAvatar: activeCharacter?.avatar || DEFAULT_CHAR_IMG,
+        personaId: activePersonaId || '',
+        personaName: userRealName,
+        bookId: activeBook?.id || null,
+        bookTitle: activeBook?.title || '',
+        conversationKey,
+        sourceMessageId: target.id,
+        sourceMessageTimestamp: target.timestamp,
+        createdAt: Date.now(),
+      };
+      // Optimistic UI update first
+      setFavoritedMessageIds((prev) => new Set(prev).add(bubbleId));
+      setFavoriteQuotesList((prev) => [quote, ...prev]);
+      showToast('已收藏');
+      // Persist to DB in background (non-blocking)
+      saveFavoriteQuote(quote).catch(() => {
+        // Rollback on failure
+        setFavoritedMessageIds((prev) => { const next = new Set(prev); next.delete(bubbleId); return next; });
+        setFavoriteQuotesList((prev) => prev.filter((q) => q.id !== quote.id));
+        showToast('收藏失败', 'error');
+      });
+    }
+  }, [messages, favoritedMessageIds, favoriteQuotesList, userNickname, characterNickname, characterRealName, activeCharacter?.avatar, activeCharacterId, activePersonaId, userRealName, activeBook?.id, activeBook?.title, conversationKey, showToast]);
+
+  const handleDeleteFavoriteQuoteFromPanel = useCallback((quoteId: string) => {
+    const match = favoriteQuotesList.find((q) => q.id === quoteId);
+    // Optimistic UI update
+    setFavoriteQuotesList((prev) => prev.filter((q) => q.id !== quoteId));
+    if (match) {
+      setFavoritedMessageIds((prev) => { const next = new Set(prev); next.delete(match.sourceMessageId); return next; });
+    }
+    // Persist in background
+    deleteFavoriteQuote(quoteId).catch(() => {
+      // Rollback on failure
+      if (match) {
+        setFavoriteQuotesList((prev) => [match, ...prev]);
+        setFavoritedMessageIds((prev) => new Set(prev).add(match.sourceMessageId));
+      }
+    });
+  }, [favoriteQuotesList]);
+
+  const handleExportConversation = useCallback(() => {
+    if (messages.length === 0) {
+      showToast('当前没有对话记录', 'error');
+      return;
+    }
+    const lines: string[] = [];
+    lines.push(`对话记录 - ${characterRealName}`);
+    if (activeBook?.title) lines.push(`书籍: 《${activeBook.title}》`);
+    lines.push(`用户: ${userRealName}`);
+    lines.push(`导出时间: ${new Date().toLocaleString()}`);
+    lines.push('────────────────────────────');
+    lines.push('');
+    messages.forEach((m) => {
+      const time = formatTimestampMinute(m.timestamp);
+      const name = m.sender === 'user' ? userNickname : characterNickname;
+      if (m.quote) {
+        lines.push(`  [引用 ${m.quote.senderName}: ${m.quote.content.slice(0, 200)}]`);
+        lines.push('');
+      }
+      lines.push(`${name} (${time}):`);
+      lines.push(m.content);
+      lines.push('');
+    });
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `对话_${characterRealName}_${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('对话已导出');
+  }, [messages, characterRealName, userRealName, userNickname, characterNickname, activeBook?.title, showToast]);
 
   const applyChatSummaryCards = useCallback(
     (nextCards: ReaderSummaryCard[]) => {
@@ -3401,6 +3537,9 @@ const ReaderMessagePanel: React.FC<ReaderMessagePanelProps> = ({
         onTtsResumeFromSaved={onTtsResumeFromSaved}
         ttsExportChapterOptions={ttsExportChapterOptions}
         onTtsExportAudiobook={onTtsExportAudiobook}
+        favoriteQuotes={currentConversationFavorites}
+        onDeleteFavoriteQuote={handleDeleteFavoriteQuoteFromPanel}
+        onExportConversation={handleExportConversation}
       />
 
       {contextMenu && !isDeleteMode && (
@@ -3447,9 +3586,22 @@ const ReaderMessagePanel: React.FC<ReaderMessagePanelProps> = ({
             >
               <Quote size={14} />
             </button>
+            <button
+              onClick={() => handleToggleFavorite(contextMenu.bubbleId)}
+              className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                favoritedMessageIds.has(contextMenu.bubbleId)
+                  ? 'text-rose-400 hover:bg-slate-700/40'
+                  : isDarkMode ? 'hover:bg-slate-700 text-slate-200' : 'hover:bg-slate-200 text-slate-600'
+              }`}
+              title={favoritedMessageIds.has(contextMenu.bubbleId) ? '已收藏' : '收藏'}
+              aria-label="favorite-message"
+            >
+              <Star size={14} fill={favoritedMessageIds.has(contextMenu.bubbleId) ? 'currentColor' : 'none'} />
+            </button>
           </div>
         </div>
       )}
+
     </>
   );
 };
