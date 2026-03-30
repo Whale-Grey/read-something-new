@@ -4,26 +4,32 @@
 @tailwind components;
 
 :root {
-        --neu-bg: #e0e5ec;
-        --neu-text: #64748b; 
-        --neu-shadow-light: #ffffff;
-        --neu-shadow-dark: #a3b1c6;
-        --neu-highlight: #e28a9d; 
+        /* ========== 墨水屏风格变量 ========== */
+        --neu-bg: #f5f4ef;            /* 微暖白纸色 */
+        --neu-text: #1a1a1a;          /* 近纯黑文字 */
+        --neu-shadow-light: transparent;  /* 去掉亮面阴影 */
+        --neu-shadow-dark: transparent;   /* 去掉暗面阴影 */
+        --neu-highlight: #333333;     /* 强调色改为深灰 */
         --app-font-scale: 1;
         --app-screen-height: 100vh;
         --app-safe-area-bottom-px: env(safe-area-inset-bottom, 0px);
+
+        /* 墨水屏专用边框变量 */
+        --eink-border: #c8c5bc;       /* 淡灰边框 */
+        --eink-border-strong: #999;   /* 深灰边框（用于按下等状态） */
+        --eink-surface: #edece7;      /* 略深的纸面色（卡片/输入框背景） */
         
-        /* Default Theme Colors (Rose-ish) - Will be overridden by JS */
-        --theme-50: 253 242 244;
-        --theme-100: 252 231 234;
-        --theme-200: 248 208 217;
-        --theme-300: 240 171 184;
-        --theme-400: 226 138 157;
-        --theme-500: 212 114 136;
-        --theme-600: 190 83 107;
-        --theme-700: 160 63 86;
-        --theme-800: 134 54 74;
-        --theme-900: 113 48 65;
+        /* Default Theme Colors - 墨水屏灰调 */
+        --theme-50: 245 244 239;
+        --theme-100: 237 236 231;
+        --theme-200: 220 218 211;
+        --theme-300: 200 197 188;
+        --theme-400: 160 157 148;
+        --theme-500: 120 117 108;
+        --theme-600: 90 87 80;
+        --theme-700: 70 68 62;
+        --theme-800: 50 48 44;
+        --theme-900: 35 33 30;
       }
 
       @supports (height: 100dvh) {
@@ -32,13 +38,16 @@
         }
       }
       
-      /* Dark mode variables */
+      /* Dark mode - 墨水屏暗色（类似暗底白字的 Kindle 反转模式） */
       .dark-mode {
-        --neu-bg: #2d3748;
-        --neu-text: #e2e8f0;
-        --neu-shadow-light: #374357; 
-        --neu-shadow-dark: #232b39;
-        --neu-highlight: #f0abb8;
+        --neu-bg: #1c1b19;
+        --neu-text: #d6d4ce;
+        --neu-shadow-light: transparent;
+        --neu-shadow-dark: transparent;
+        --neu-highlight: #e0ded8;
+        --eink-border: #3a3832;
+        --eink-border-strong: #555;
+        --eink-surface: #252420;
       }
 
       /* Fix Scrollbars & Layout */
@@ -53,18 +62,14 @@
       html, body {
         margin: 0;
         padding: 0;
-        overflow: hidden; /* Prevent body scroll */
+        overflow: hidden;
         overscroll-behavior: none;
         background-color: var(--neu-bg);
         color: var(--neu-text);
         transition: background-color 0.3s ease, color 0.3s ease, font-size 0.3s ease;
       }
 
-      /* ── Touch-device :active fix ──
-         On mobile / PWA, the browser may delay :active until it confirms
-         the touch is not a scroll gesture. Applying touch-action:manipulation
-         on all tappable elements removes the double-tap-to-zoom delay so
-         :active fires immediately on pointerdown / touchstart.            */
+      /* ── Touch-device :active fix ── */
       @media (pointer: coarse) {
         button,
         [role="button"],
@@ -77,33 +82,24 @@
         }
       }
 
-      /* ── Instant :active feedback ──
-         Tailwind's `transition-all` applies transition-duration:150ms to every
-         CSS property, which means :active shadow / transform changes are animated
-         over 150ms.  On a quick tap (especially in Chrome DevTools touch-emulation
-         or fast mouse clicks) the :active state ends before the animation finishes,
-         making the press feedback invisible.
-         Fix: force transition-duration to 0 during :active so the press style
-         appears instantly.  On release the element returns to its base state,
-         where the original transition-duration kicks in for a smooth release. */
+      /* ── Instant :active feedback ── */
       button:active,
       [role="button"]:active,
       a:active {
         transition-duration: 0s !important;
       }
 
-      /* Custom scrollbar for a cleaner look */
+      /* Custom scrollbar - 墨水屏风格细线 */
       ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
+        width: 4px;
+        height: 4px;
       }
       ::-webkit-scrollbar-track {
         background: transparent;
       }
       ::-webkit-scrollbar-thumb {
-        background: var(--neu-shadow-dark);
-        border-radius: 3px;
-        opacity: 0.5;
+        background: var(--eink-border);
+        border-radius: 2px;
       }
       .no-scrollbar::-webkit-scrollbar {
         display: none;
@@ -113,32 +109,29 @@
         scrollbar-width: none;
       }
 
-      /* Reader scroll area: keep right scrollbar visible and draggable */
+      /* Reader scroll area */
       .reader-scroll-panel {
         scrollbar-gutter: stable;
-        scrollbar-width: auto;
+        scrollbar-width: thin;
       }
       .reader-scroll-panel::-webkit-scrollbar {
-        width: 12px;
+        width: 6px;
       }
       .reader-scroll-panel::-webkit-scrollbar-track {
-        background: rgb(148 163 184 / 0.18);
-        border-radius: 9999px;
+        background: transparent;
       }
       .reader-scroll-panel::-webkit-scrollbar-thumb {
-        background: rgb(100 116 139 / 0.65);
+        background: var(--eink-border);
         border-radius: 9999px;
-        border: 2px solid transparent;
-        background-clip: padding-box;
       }
       .dark-mode .reader-scroll-panel::-webkit-scrollbar-track {
-        background: rgb(71 85 105 / 0.4);
+        background: transparent;
       }
       .dark-mode .reader-scroll-panel::-webkit-scrollbar-thumb {
-        background: rgb(148 163 184 / 0.55);
+        background: var(--eink-border);
       }
 
-      /* Reader消息面板: always hide scrollbars across browsers/PWA */
+      /* Reader消息面板: always hide scrollbars */
       .reader-message-scroll {
         -ms-overflow-style: none;
         scrollbar-width: none;
@@ -288,77 +281,90 @@
         will-change: transform, opacity;
       }
 
-      /* Neumorphism Utilities */
+      /* ========================================
+         墨水屏风格核心样式
+         用细边框替代所有 neumorphism 阴影
+         ======================================== */
+
+      /* Neumorphism Utilities → E-ink 平面风格 */
       .neu-bg { background-color: var(--neu-bg); }
       .neu-text { color: var(--neu-text); }
       
       .neu-flat {
         background: var(--neu-bg);
-        box-shadow: 6px 6px 12px var(--neu-shadow-dark), -6px -6px 12px var(--neu-shadow-light);
-        border-radius: 1rem;
-        border: none;
+        box-shadow: none;
+        border-radius: 0.75rem;
+        border: 1px solid var(--eink-border);
       }
       
       .neu-pressed {
-        background: var(--neu-bg);
-        box-shadow: inset 5px 5px 10px var(--neu-shadow-dark), inset -5px -5px 10px var(--neu-shadow-light);
-        border-radius: 1rem;
-        border: none;
+        background: var(--eink-surface);
+        box-shadow: none;
+        border-radius: 0.75rem;
+        border: 1px solid var(--eink-border-strong);
       }
 
       .neu-card-pressable {
-        transition: box-shadow 150ms ease;
+        transition: background-color 150ms ease, border-color 150ms ease;
       }
       .neu-card-pressable:active {
         transition-duration: 0s;
-        box-shadow: inset 3px 3px 6px var(--neu-shadow-dark), inset -3px -3px 6px var(--neu-shadow-light) !important;
+        background-color: var(--eink-surface) !important;
+        box-shadow: none !important;
+        border-color: var(--eink-border-strong) !important;
       }
 
       .neu-btn {
         background: var(--neu-bg);
-        box-shadow: 5px 5px 10px var(--neu-shadow-dark), -5px -5px 10px var(--neu-shadow-light);
-        border-radius: 9999px; /* Pill/Circle */
+        box-shadow: none;
+        border-radius: 9999px;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: all 0.2s ease;
+        transition: all 0.15s ease;
         color: var(--neu-text);
-        border: none;
+        border: 1px solid var(--eink-border);
         cursor: pointer;
       }
       
       .neu-btn:active {
         transition-duration: 0s;
-        box-shadow: inset 3px 3px 6px var(--neu-shadow-dark), inset -3px -3px 6px var(--neu-shadow-light);
+        box-shadow: none;
+        background: var(--eink-surface);
+        border-color: var(--eink-border-strong);
         color: var(--neu-highlight);
         transform: translateY(1px);
       }
       .neu-btn-active {
-        box-shadow: inset 3px 3px 6px var(--neu-shadow-dark), inset -3px -3px 6px var(--neu-shadow-light);
+        box-shadow: none;
+        background: var(--eink-surface);
+        border-color: var(--eink-border-strong);
         color: var(--neu-highlight);
         transform: translateY(1px);
       }
 
-      /* Toggle-style pressed state: keep inset look without extra movement */
+      /* Toggle-style pressed state */
       .reader-tool-active {
-        box-shadow: inset 3px 3px 6px var(--neu-shadow-dark), inset -3px -3px 6px var(--neu-shadow-light);
+        box-shadow: none;
+        background: var(--eink-surface);
+        border-color: var(--eink-border-strong);
       }
 
-      /* Highlighter toggle: avoid transient :active flash, rely on persistent pressed state */
+      /* Highlighter toggle */
       .reader-tool-toggle {
-        transition: color 0.2s ease, box-shadow 0.12s ease;
+        transition: color 0.2s ease, border-color 0.12s ease, background-color 0.12s ease;
       }
       .reader-tool-toggle:active {
         transform: none;
-        box-shadow: 5px 5px 10px var(--neu-shadow-dark), -5px -5px 10px var(--neu-shadow-light);
+        box-shadow: none;
       }
       .reader-tool-toggle.reader-tool-active:active {
         transform: none;
-        box-shadow: inset 3px 3px 6px var(--neu-shadow-dark), inset -3px -3px 6px var(--neu-shadow-light);
+        box-shadow: none;
       }
 
       .reader-ai-fab {
-        transition: color 0.2s ease, box-shadow 0.14s ease, transform 0.14s ease, opacity 0.2s ease;
+        transition: color 0.2s ease, border-color 0.14s ease, transform 0.14s ease, opacity 0.2s ease;
       }
       .reader-ai-fab:active,
       .reader-ai-fab.neu-btn-active {
@@ -418,16 +424,17 @@
         animation: reader-typing-breath 1.4s ease-in-out infinite;
       }
 
-      /* Card press feedback for clickable book cards */
+      /* Card press feedback - 墨水屏：轻微凹陷感 + 背景变灰 */
       .app-card-press {
-        transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 160ms ease, filter 160ms ease;
+        transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1), background-color 160ms ease, border-color 160ms ease;
         transform-origin: center;
       }
       .app-card-press:active {
         transition-duration: 0s;
         transform: translateY(1px) scale(0.978);
-        box-shadow: inset 4px 4px 8px var(--neu-shadow-dark), inset -4px -4px 8px var(--neu-shadow-light);
-        filter: saturate(0.96);
+        box-shadow: none;
+        background-color: var(--eink-surface);
+        filter: none;
       }
       .app-card-press-media {
         transition: transform 160ms ease, opacity 160ms ease;
@@ -437,16 +444,17 @@
         transform: scale(0.985);
       }
 
-      /* Library grid cover: softer inset press to match neumorphic import card */
+      /* Library grid cover - 墨水屏风格 */
       .lib-cover-card-press {
-        transition: transform 170ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 190ms ease, filter 190ms ease;
+        transition: transform 170ms cubic-bezier(0.22, 1, 0.36, 1), background-color 190ms ease, border-color 190ms ease;
         transform-origin: center;
       }
       .lib-cover-card-press:active {
         transition-duration: 0s;
         transform: translateY(1px) scale(0.982);
-        box-shadow: inset 5px 5px 10px var(--neu-shadow-dark), inset -5px -5px 10px var(--neu-shadow-light);
-        filter: saturate(0.98);
+        box-shadow: none;
+        background-color: var(--eink-surface);
+        filter: none;
       }
       .lib-cover-card-media {
         transition: opacity 170ms ease;
@@ -456,11 +464,12 @@
         opacity: 0.94;
       }
       
+      /* 输入框 - 用内凹边框代替内阴影 */
       .neu-input {
-        background: var(--neu-bg);
-        box-shadow: inset 4px 4px 8px var(--neu-shadow-dark), inset -4px -4px 8px var(--neu-shadow-light);
+        background: var(--eink-surface);
+        box-shadow: none;
         border-radius: 9999px;
-        border: none;
+        border: 1px solid var(--eink-border);
         outline: none;
         color: var(--neu-text);
       }
@@ -595,6 +604,7 @@
         -webkit-tap-highlight-color: transparent;
       }
 
+      /* 统计页便签 - 墨水屏纸张感 */
       .stats-note-wrap {
         position: relative;
         width: min(100%, 15.8rem);
@@ -611,11 +621,11 @@
         width: 5.1rem;
         height: 1.5rem;
         pointer-events: none;
-        background: rgba(255, 255, 255, 0.4);
+        background: rgba(200, 197, 188, 0.35);
         backdrop-filter: blur(2px);
-        border-left: 1px dashed rgba(0, 0, 0, 0.1);
-        border-right: 1px dashed rgba(0, 0, 0, 0.1);
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        border-left: 1px dashed rgba(0, 0, 0, 0.12);
+        border-right: 1px dashed rgba(0, 0, 0, 0.12);
+        box-shadow: none;
         z-index: 2;
       }
 
@@ -625,10 +635,9 @@
         height: 100%;
         box-sizing: border-box;
         padding: 0.95rem;
-        background: rgba(255, 248, 232, 0.9);
-        box-shadow:
-          5px 5px 15px rgba(0, 0, 0, 0.1),
-          inset 0 0 30px rgba(255, 255, 255, 0.5);
+        background: var(--eink-surface);
+        border: 1px solid var(--eink-border);
+        box-shadow: none;
       }
 
       .stats-note-content {
@@ -636,7 +645,7 @@
         width: 100%;
         overflow-y: auto;
         padding-top: 0.9rem;
-        color: #444444;
+        color: var(--neu-text);
         white-space: pre-wrap;
         font-family: "PING FANG SHAO HUA", "PingFang SC", "Microsoft YaHei", sans-serif;
       }
@@ -645,15 +654,15 @@
         font-size: calc(1.08rem * var(--app-font-scale, 1));
         font-weight: 700;
         margin-bottom: 0.55rem;
-        color: #555555;
-        border-bottom: 1px dashed #cccccc;
+        color: var(--neu-text);
+        border-bottom: 1px dashed var(--eink-border);
         padding-bottom: 0.32rem;
       }
 
       .stats-note-body {
         font-size: calc(0.95rem * var(--app-font-scale, 1));
         line-height: 1.62;
-        color: #444444;
+        color: var(--neu-text);
         white-space: pre-wrap;
       }
 
@@ -664,7 +673,7 @@
         justify-content: center;
         width: 100%;
         height: 100%;
-        color: #555555;
+        color: var(--neu-text);
         font-family: "PING FANG SHAO HUA", "PingFang SC", "Microsoft YaHei", sans-serif;
       }
 
@@ -711,7 +720,7 @@
       }
 
       .stats-note-quill-path {
-        fill: #444444;
+        fill: var(--neu-text);
       }
 
       @keyframes stats-note-writing {
@@ -732,6 +741,7 @@
         }
       }
 
+      /* 滑块控件 - 墨水屏简洁样式 */
       input[type='range'].app-range {
         -webkit-appearance: none;
         appearance: none;
@@ -759,15 +769,15 @@
         height: 18px;
         margin-top: calc((8px - 18px) / 2);
         border-radius: 50%;
-        border: 1px solid rgb(var(--theme-300) / 0.9);
-        background: rgb(var(--theme-400) / 1);
-        box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2), 0 0 0 1px rgb(var(--theme-100) / 0.35);
+        border: 1.5px solid var(--eink-border-strong);
+        background: var(--neu-bg);
+        box-shadow: none;
         cursor: pointer;
       }
 
       .dark-mode input[type='range'].app-range::-webkit-slider-thumb {
-        border-color: rgb(var(--theme-300) / 0.75);
-        box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.45), 0 0 0 1px rgb(var(--theme-900) / 0.35);
+        border-color: var(--eink-border-strong);
+        box-shadow: none;
       }
 
       input[type='range'].app-range::-moz-range-track {
@@ -780,15 +790,15 @@
         width: 18px;
         height: 18px;
         border-radius: 50%;
-        border: 1px solid rgb(var(--theme-300) / 0.9);
-        background: rgb(var(--theme-400) / 1);
-        box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2), 0 0 0 1px rgb(var(--theme-100) / 0.35);
+        border: 1.5px solid var(--eink-border-strong);
+        background: var(--neu-bg);
+        box-shadow: none;
         cursor: pointer;
       }
 
       .dark-mode input[type='range'].app-range::-moz-range-thumb {
-        border-color: rgb(var(--theme-300) / 0.75);
-        box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.45), 0 0 0 1px rgb(var(--theme-900) / 0.35);
+        border-color: var(--eink-border-strong);
+        box-shadow: none;
       }
 
       input[type='range'].app-range::-moz-range-progress {
