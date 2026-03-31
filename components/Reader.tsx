@@ -4996,7 +4996,7 @@ const Reader: React.FC<ReaderProps> = ({
         </>
       )}
 
-      <div ref={readerViewportContainerRef} className="relative flex-1 min-h-0 m-4 mt-0">
+      <div ref={readerViewportContainerRef} className="relative flex-1 min-h-0">
         <div
           ref={readerScrollRef}
           aria-busy={isLoadingMaskVisible}
