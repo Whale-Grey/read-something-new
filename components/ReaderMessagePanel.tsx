@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
   MessagesSquare,
@@ -508,7 +508,7 @@ const ReaderMessagePanel = React.forwardRef<
   ttsExportChapterOptions,
   onTtsExportAudiobook,
 }, ref) => {    
-  const [isAiPanelOpen, setIsAiPanelOpen] = useState(true);
+  const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const [isAiFabOpening, setIsAiFabOpening] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [messages, setMessages] = useState<ChatBubble[]>([]);
@@ -3152,23 +3152,6 @@ const ReaderMessagePanel = React.forwardRef<
   return (
     <>
       {readerMoreAppearance.bubbleCssApplied && <style>{readerMoreAppearance.bubbleCssApplied}</style>}
-          className={`reader-ai-fab absolute right-6 w-12 h-12 neu-btn rounded-full z-20 ${
-            isAiFabOpening ? 'neu-btn-active' : ''
-          }`}
-          style={{ bottom: `${fabBottomPx}px`, color: 'rgb(var(--theme-400) / 1)' }}
-        >
-          <MessagesSquare size={20} />
-          <span
-            className={`reader-ai-fab-badge absolute -top-1 -right-1 min-w-[1.1rem] h-[1.1rem] px-1 rounded-full text-[10px] leading-none font-bold flex items-center justify-center ${
-              unreadMessageCount > 0 ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
-            } ${isDarkMode ? 'border border-slate-700 text-white' : 'border border-white/70 text-white'}`}
-            style={{ backgroundColor: 'rgb(var(--theme-500) / 1)' }}
-            aria-hidden={unreadMessageCount <= 0}
-          >
-            {unreadMessageCount > 0 ? unreadMessageCount : ''}
-          </span>
-        </button>
-      )}
 
       <div
         className={`absolute top-0 left-0 right-0 transition-[transform,opacity] ${isPanelDragging ? 'duration-75' : 'duration-500'} ease-in-out z-30 pointer-events-none ${
@@ -3180,12 +3163,11 @@ const ReaderMessagePanel = React.forwardRef<
       >
         <div
           ref={aiPanelRef}
-          className={`rm-panel absolute bottom-0 left-0 right-0 pointer-events-auto overflow-hidden ${
-            isDarkMode ? 'bg-[#2d3748] rounded-b-3xl rounded-b-none shadow-[0_-5px_20px_rgba(0,0,0,0.4)]' : 'neu-flat rounded-b-3xl rounded-b-none'
+          className={`rm-panel absolute top-0 left-0 right-0 pointer-events-auto overflow-hidden ${
+            isDarkMode ? 'bg-[#1c1b19] rounded-b-3xl border-b border-[#3a3832]' : 'bg-[#F6F6F6] rounded-b-3xl border-b border-[#ddd]'
           }`}
           style={{
             height: `${resolvedPanelVisualHeight}px`,
-            boxShadow: isDarkMode ? '' : '0 -10px 20px -5px rgba(163,177,198, 0.4)',
           }}
         >
           <div
@@ -3615,4 +3597,3 @@ const ReaderMessagePanel = React.forwardRef<
 });
 
 export default ReaderMessagePanel;
-
