@@ -778,6 +778,7 @@ const Reader: React.FC<ReaderProps> = ({
   const [bookText, setBookText] = useState('');
   const [isLoadingBookContent, setIsLoadingBookContent] = useState(false);
   const [readerScrollbar, setReaderScrollbar] = useState({ visible: false, height: 40 });
+  const [chapterScrollPercent, setChapterScrollPercent] = useState(0);
   const [chapterTransitionClass, setChapterTransitionClass] = useState('');
   const [readerTypography, setReaderTypography] = useState<ReaderTypographyStyle>(() => getDefaultReaderTypography(isDarkMode));
   const [readerTextColorInput, setReaderTextColorInput] = useState(() => getDefaultReaderTypography(isDarkMode).textColor);
@@ -1158,8 +1159,10 @@ const Reader: React.FC<ReaderProps> = ({
       readerScrollbarTopRef.current = 0;
       queuedReaderScrollbarTopRef.current = null;
       setReaderScrollbar((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+      setChapterScrollPercent(100);
       return;
     }
+    setChapterScrollPercent(clamp((scrollTop / contentScrollable) * 100, 0, 100));
 
     const trackHeight = readerScrollbarTrackRef.current?.clientHeight || Math.max(48, clientHeight - 24);
     const thumbHeight = Math.max(36, Math.min(trackHeight, (clientHeight / scrollHeight) * trackHeight));
@@ -4358,10 +4361,7 @@ const Reader: React.FC<ReaderProps> = ({
         <button onClick={handleBackClick} className={`w-9 h-9 flex items-center justify-center transition-colors shrink-0 ${isDarkMode ? 'text-[#d6d4ce]/60 hover:text-[#d6d4ce]' : 'text-[#363233]/60 hover:text-[#363233]'}`}>
           <ArrowLeft size={20} />
         </button>
-        <div className="flex-1 min-w-0 max-w-[calc(100%-18rem)]">
-          <div className="text-sm font-serif font-medium opacity-70 truncate">{activeBook?.title || '\u9605\u8bfb\u4e2d'}</div>
-        </div>
-        <div className="flex gap-1 shrink-0">
+        <div className="flex gap-1 shrink-0 ml-auto">
           <button
             onClick={toggleTocPanel}
             className={`w-9 h-9 flex items-center justify-center transition-colors rounded-lg ${isTocOpen ? (isDarkMode ? 'bg-white/10' : 'bg-black/5') : ''} ${isDarkMode ? 'text-[#d6d4ce]/60 hover:text-[#d6d4ce]' : 'text-[#363233]/50 hover:text-[#363233]'}`}
@@ -5241,25 +5241,30 @@ const Reader: React.FC<ReaderProps> = ({
           </div>
         )}
 
-        {readerScrollbar.visible && (
-          <div ref={readerScrollbarTrackRef} className="absolute right-1.5 top-3 bottom-3 w-1 z-10 pointer-events-none overflow-hidden rounded-full">
-            <button
-              ref={readerScrollbarThumbRef}
-              type="button"
-              aria-label="reader-scrollbar-thumb"
-              onPointerDown={handleReaderThumbPointerDown}
-              className={`absolute left-0 w-1 rounded-full border pointer-events-auto touch-none ${
-                isDarkMode
-                  ? 'bg-slate-400/70 border-slate-300/30'
-                  : 'bg-slate-500/65 border-slate-200/50'
-              }`}
-              style={{
-                height: `${readerScrollbar.height}px`,
-                transform: `translateY(${readerScrollbarTopRef.current}px)`,
-              }}
-            />
+        <div ref={readerScrollbarTrackRef} className="absolute right-1.5 top-3 bottom-3 w-1 z-10 pointer-events-none overflow-hidden rounded-full">
+          <button
+            ref={readerScrollbarThumbRef}
+            type="button"
+            aria-label="reader-scrollbar-thumb"
+            onPointerDown={handleReaderThumbPointerDown}
+            className="absolute left-0 w-1 rounded-full border pointer-events-auto touch-none opacity-0"
+            style={{
+              height: `${readerScrollbar.height}px`,
+              transform: `translateY(${readerScrollbarTopRef.current}px)`,
+            }}
+          />
+        </div>
+
+        <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between pointer-events-none z-10">
+          <div className={`text-xs font-serif opacity-40 truncate max-w-[60%] ${isDarkMode ? 'text-[#d6d4ce]' : 'text-[#363233]'}`}>
+            {activeBook?.title || ''}
           </div>
-        )}
+          {readerScrollbar.visible && (
+            <div className={`text-[11px] font-mono opacity-40 ${isDarkMode ? 'text-[#d6d4ce]' : 'text-[#363233]'}`}>
+              {chapterScrollPercent.toFixed(1)}%
+            </div>
+          )}
+        </div>
 
       </div>
 

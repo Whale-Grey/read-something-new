@@ -11,13 +11,13 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { ApiConfig, ApiPreset, AppSettings, Book, Chapter, FavoriteQuote, RagApiConfigResolver, ReaderBookState, ReaderSummaryCard, ReaderHighlightRange, ReaderPositionState, TtsConfig, TtsPlaybackState } from '../types';
+import { Achievement, ApiConfig, ApiPreset, AppSettings, Book, Chapter, FavoriteQuote, RagApiConfigResolver, ReaderBookState, ReaderSummaryCard, ReaderHighlightRange, ReaderPositionState, TtsConfig, TtsPlaybackState } from '../types';
 import type { TtsPreset } from '../types';
 import { Character, Persona, WorldBookEntry } from './settings/types';
 import ResolvedImage from './ResolvedImage';
 import ReaderMoreSettingsPanel, { ReaderArchiveOption } from './ReaderMoreSettingsPanel';
 import { deleteImageByRef, saveImageFile } from '../utils/imageStorage';
-import { saveFavoriteQuote, getAllFavoriteQuotes, deleteFavoriteQuote } from '../utils/studyHubStorage';
+import { saveFavoriteQuote, getAllFavoriteQuotes, deleteFavoriteQuote, saveAchievement } from '../utils/studyHubStorage';
 import { getBookContent, saveBookSummaryState } from '../utils/bookContentStorage';
 import {
   abortConversationGeneration,
@@ -2978,6 +2978,31 @@ const ReaderMessagePanel = React.forwardRef<
 
       const baseMessages = result.baseMessages;
       const aiMessages = result.aiMessages;
+
+      // 扫描 AI 回复，检测并保存成就
+      for (const msg of aiMessages) {
+        const achMatch = msg.content.match(ACHIEVEMENT_PATTERN);
+        if (achMatch) {
+          const [, name, icon, condition, reward, comment] = achMatch;
+          const achievement: Achievement = {
+            id: `ach-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            name: name.trim(),
+            icon: icon.trim(),
+            condition: condition.trim(),
+            reward: reward.trim(),
+            comment: comment.trim(),
+            bookId: activeBook?.id || null,
+            bookTitle: activeBook?.title || '',
+            characterId: activeCharacterId || '',
+            characterName: activeCharacter?.name || '',
+            characterAvatar: activeCharacter?.avatar || '',
+            createdAt: Date.now(),
+          };
+          saveAchievement(achievement).catch(() => undefined);
+          break;
+        }
+      }
+
       pendingGenerationRef.current = {
         conversationKey: requestConversationKey,
         committedMessages: baseMessages,
@@ -3295,32 +3320,7 @@ const ReaderMessagePanel = React.forwardRef<
             height: `${resolvedPanelVisualHeight}px`,
           }}
         >
-          <div
-            className="h-8 flex items-center justify-center cursor-pointer opacity-60 hover:opacity-100 touch-none"
-            onPointerDown={handlePanelGripPointerDown}
-            onPointerMove={handlePanelGripPointerMove}
-            onPointerUp={handlePanelGripPointerUp}
-            onPointerCancel={handlePanelGripPointerCancel}
-          >
-            <div className={`w-12 h-1.5 rounded-full ${isDarkMode ? 'bg-slate-600' : 'bg-slate-300'}`} />
-          </div>
-
-          <div className="flex flex-col h-[calc(100%-2rem)] min-h-0">
-          <div className="rm-header px-6 pb-2 flex items-center">
-            <div className="flex items-center gap-2 min-w-0">
-              <div
-                className={`rm-avatar w-10 h-10 rounded-full overflow-hidden flex items-center justify-center border-2 border-transparent ${
-                  isDarkMode ? 'bg-[#1a202c]' : 'neu-pressed'
-                }`}
-              >
-                {renderCharacterAvatar()}
-              </div>
-              <span className={`rm-char-name text-sm font-bold truncate ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                {characterNickname}
-              </span>
-            </div>
-          </div>
-
+          <div className="flex flex-col h-full min-h-0">
           <div className="relative flex-1 min-h-0 flex flex-col overflow-hidden">
           {readerMoreAppearance.chatBackgroundImage && (
             <div className="absolute inset-0 pointer-events-none z-0">
@@ -3388,6 +3388,15 @@ const ReaderMessagePanel = React.forwardRef<
                   onClick={() => handleBubbleClick(message.id)}
                 >
                   <div className={`max-w-[88%] flex items-end gap-2 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+                    {!isUser && (
+                      <div
+                        className={`rm-avatar w-7 h-7 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center ${
+                          isDarkMode ? 'bg-[#1a202c]' : 'neu-pressed'
+                        }`}
+                      >
+                        {renderCharacterAvatar()}
+                      </div>
+                    )}
                     {isDeleteMode && (
                       <button
                         type="button"
@@ -3456,7 +3465,7 @@ const ReaderMessagePanel = React.forwardRef<
             </div>
           </div>
 
-          <div className="rm-input-area p-4 pb-6 relative z-10" style={{ paddingBottom: `${24 + safeBottomInset}px` }}>
+          <div className="rm-input-area px-4 pt-2 pb-3 relative z-10" style={{ paddingBottom: `${12 + safeBottomInset}px` }}>
             {toast && (
               <div
                 className={`absolute z-20 left-1/2 -translate-x-1/2 -top-8 px-6 py-2 rounded-full flex items-center gap-2 border backdrop-blur-md text-xs font-bold ${
@@ -3514,7 +3523,7 @@ const ReaderMessagePanel = React.forwardRef<
               </div>
             )}
 
-            <div className={`rm-input-wrap flex items-center gap-3 rounded-full px-2 py-2 ${isDarkMode ? 'bg-[#1a202c] shadow-inner' : 'neu-pressed'}`}>
+            <div className={`rm-input-wrap flex items-center gap-3 rounded-full px-2 py-1 ${isDarkMode ? 'bg-[#1a202c] shadow-inner' : 'neu-pressed'}`}>
               <input
                 type="text"
                 value={inputText}
@@ -3588,6 +3597,15 @@ const ReaderMessagePanel = React.forwardRef<
             </div>
           </div>
             </div>
+          <div
+            className="h-8 flex items-center justify-center cursor-pointer opacity-60 hover:opacity-100 touch-none"
+            onPointerDown={handlePanelGripPointerDown}
+            onPointerMove={handlePanelGripPointerMove}
+            onPointerUp={handlePanelGripPointerUp}
+            onPointerCancel={handlePanelGripPointerCancel}
+          >
+            <div className={`w-12 h-1.5 rounded-full ${isDarkMode ? 'bg-slate-600' : 'bg-slate-300'}`} />
+          </div>
           </div>
         </div>
       </div>

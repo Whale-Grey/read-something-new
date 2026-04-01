@@ -228,6 +228,21 @@ export interface FavoriteQuote {
   createdAt: number;
 }
 
+export interface Achievement {
+  id: string;
+  name: string;
+  icon: string;
+  condition: string;
+  reward: string;
+  comment: string;
+  bookId: string | null;
+  bookTitle: string;
+  characterId: string;
+  characterName: string;
+  characterAvatar: string;
+  createdAt: number;
+}
+
 export type ApiProvider = 'OPENAI' | 'DEEPSEEK' | 'GEMINI' | 'CLAUDE' | 'CUSTOM';
 
 export interface ApiConfig {

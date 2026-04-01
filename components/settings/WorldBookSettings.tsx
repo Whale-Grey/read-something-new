@@ -438,7 +438,7 @@ const WorldBookSettings: React.FC<WorldBookSettingsProps> = ({
                 data-wb-entry-position={entry.insertPosition}
                 className={`${cardClass} p-5 rounded-2xl transition-all ${
                   isEditing ? activeBorderClass : baseBorderClass
-                } ${isDragging ? 'opacity-70 scale-[0.99]' : ''} ${isDragOver ? 'ring-2 ring-rose-300/70' : ''}`}
+                } ${isDragging ? 'opacity-70 scale-[0.99]' : ''} ${isDragOver ? 'ring-2 ring-rose-300/70' : ''} ${entry.disabled && !isEditing ? 'opacity-50' : ''}`}
               >
                 <div className="flex justify-between items-start mb-2">
                   {!isEditing && (
@@ -486,6 +486,21 @@ const WorldBookSettings: React.FC<WorldBookSettingsProps> = ({
                   </div>
 
                   <div className="flex gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => updateWorldBookEntry(entry.id, 'disabled', !entry.disabled)}
+                      className={`h-9 px-3 rounded-full text-xs font-bold transition-colors ${
+                        entry.disabled
+                          ? isDarkMode
+                            ? 'bg-slate-700 text-slate-500'
+                            : 'bg-slate-200 text-slate-400'
+                          : isDarkMode
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : 'bg-emerald-100 text-emerald-600'
+                      } ${btnClass}`}
+                      title={entry.disabled ? '已禁用，点击启用' : '已启用，点击禁用'}
+                    >
+                      {entry.disabled ? '已关' : '已开'}
+                    </button>
                     {isEditing ? (
                       <button
                         onClick={() => setEditingWorldBookId(null)}

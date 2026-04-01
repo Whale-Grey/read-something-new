@@ -1028,7 +1028,7 @@ export const buildCharacterWorldBookSections = (
       after: [],
     };
   }
-  const scopedEntries = worldBookEntries.filter((entry) => boundCategories.has(entry.category));
+  const scopedEntries = worldBookEntries.filter((entry) => boundCategories.has(entry.category) && !entry.disabled);
   return {
     before: sortWorldBookEntriesByCode(scopedEntries.filter((entry) => entry.insertPosition === 'BEFORE')),
     after: sortWorldBookEntriesByCode(scopedEntries.filter((entry) => entry.insertPosition === 'AFTER')),

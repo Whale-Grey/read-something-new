@@ -26,6 +26,7 @@ export interface WorldBookEntry {
   category: string;
   content: string;
   insertPosition: 'BEFORE' | 'AFTER';
+  disabled?: boolean;
 }
 
 export interface ThemeClasses {

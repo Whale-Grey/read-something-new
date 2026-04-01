@@ -2,13 +2,13 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   Plus, ArrowLeft, Search, X, Filter, Trash2, MessageCircle,
   Send, ChevronLeft, ChevronRight, Check, RotateCcw, HelpCircle,
-  Loader2, BookMarked, CheckCircle2, NotebookPen, CircleCheckBig,
+  Loader2, BookMarked, CheckCircle2, NotebookPen, CircleCheckBig, Trophy,
   BookPlus, UserCircle, Edit2, Link, FileUp, ChevronDown, Feather, Scroll,
   Heading1, Heading2, Heading3, Pilcrow, Bold, Italic, ListOrdered, List as ListIcon,
   Save, Eraser, Highlighter, Copy, ExternalLink,
 } from 'lucide-react';
 import {
-  Book, ApiConfig, RagApiConfigResolver, Notebook, StudyNote, StudyNoteCommentThread,
+  Achievement, Book, ApiConfig, RagApiConfigResolver, Notebook, StudyNote, StudyNoteCommentThread,
   StudyNoteCommentMessage, QuizSession, QuizConfig, QuizQuestion, ReaderCssPreset,
 } from '../types';
 import { Persona, Character, WorldBookEntry } from './settings/types';
@@ -18,6 +18,7 @@ import { saveImageFile, isImageRef, getImageBlobByRef } from '../utils/imageStor
 import {
   saveNotebook, getAllNotebooks, deleteNotebook,
   saveQuizSession, getAllQuizSessions, deleteQuizSession,
+  getAllAchievements, deleteAchievement,
 } from '../utils/studyHubStorage';
 import {
   prepareBookContexts, buildNoteCommentPrompt, buildNoteReplyPrompt,
@@ -47,7 +48,7 @@ interface StudyHubProps {
   onJumpToBookHighlight?: (bookId: string, chapterIndex: number | null, charOffset: number) => void;
 }
 
-type HubTab = 'notes' | 'quiz' | 'highlights';
+type HubTab = 'notes' | 'quiz' | 'highlights' | 'achievements';
 type NotesView = 'list' | 'detail' | 'editor';
 type QuizView = 'history' | 'config' | 'play' | 'result';
 type NoteBlockStyleTag = 'p' | 'h1' | 'h2' | 'h3';
@@ -386,6 +387,10 @@ const StudyHub: React.FC<StudyHubProps> = ({
   const hubTabTimerRef = useRef<number | null>(null);
   const hubTabUnlockRef = useRef<number | null>(null);
 
+  // ─── Achievements state ───
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [achievementsLoading, setAchievementsLoading] = useState(false);
+
   // ─── Highlights state ───
   const [highlightsLoading, setHighlightsLoading] = useState(false);
   const [allBookHighlights, setAllBookHighlights] = useState<
@@ -531,6 +536,25 @@ const StudyHub: React.FC<StudyHubProps> = ({
       cancelled = true;
     };
   }, []);
+
+  // ─── Load achievements when switching to achievements tab ───
+  useEffect(() => {
+    if (activeTab !== 'achievements') return;
+    let cancelled = false;
+    const load = async () => {
+      setAchievementsLoading(true);
+      try {
+        const data = await getAllAchievements();
+        if (!cancelled) setAchievements(data);
+      } catch {
+        // keep empty
+      } finally {
+        if (!cancelled) setAchievementsLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [activeTab]);
 
   // ─── Load highlights when switching to highlights tab ───
   useEffect(() => {
@@ -2591,36 +2615,44 @@ const StudyHub: React.FC<StudyHubProps> = ({
   }, [allBookHighlights]);
 
   const renderTabBar = () => {
-    const tabIndex = activeTab === 'notes' ? 0 : activeTab === 'highlights' ? 1 : 2;
+    const tabIndex = activeTab === 'notes' ? 0 : activeTab === 'highlights' ? 1 : activeTab === 'quiz' ? 2 : 3;
     return (
-    <div className={`relative grid grid-cols-3 rounded-xl p-1 mx-6 overflow-hidden ${pressedClass}`}>
+    <div className={`relative grid grid-cols-4 rounded-xl p-1 mx-6 overflow-hidden ${pressedClass}`}>
       <div
-        className={`pointer-events-none absolute top-1 bottom-1 left-1 w-[calc((100%-0.5rem)/3)] rounded-lg transition-transform duration-300 ${isDarkMode ? 'bg-[#2d3748] shadow-[6px_6px_12px_#232b39]' : 'bg-[var(--neu-bg)] shadow-[6px_6px_12px_var(--neu-shadow-dark)]'}`}
+        className={`pointer-events-none absolute top-1 bottom-1 left-1 w-[calc((100%-0.5rem)/4)] rounded-lg transition-transform duration-300 ${isDarkMode ? 'bg-[#2d3748] shadow-[6px_6px_12px_#232b39]' : 'bg-[var(--neu-bg)] shadow-[6px_6px_12px_var(--neu-shadow-dark)]'}`}
         style={{ transform: `translateX(${tabIndex * 100}%)` }}
       />
       <button
         onClick={() => switchHubTab('notes')}
-        className={`relative z-10 flex items-center justify-center gap-1 py-2.5 rounded-lg text-sm font-bold transition-colors ${
+        className={`relative z-10 flex items-center justify-center gap-1 py-2.5 rounded-lg text-xs font-bold transition-colors ${
           activeTab === 'notes' ? (isDarkMode ? 'text-white' : 'text-rose-400') : 'text-slate-500'
         }`}
       >
-        <NotebookPen size={14} /> 笔记
+        <NotebookPen size={13} /> 笔记
       </button>
       <button
         onClick={() => switchHubTab('highlights')}
-        className={`relative z-10 flex items-center justify-center gap-1 py-2.5 rounded-lg text-sm font-bold transition-colors ${
+        className={`relative z-10 flex items-center justify-center gap-1 py-2.5 rounded-lg text-xs font-bold transition-colors ${
           activeTab === 'highlights' ? (isDarkMode ? 'text-white' : 'text-rose-400') : 'text-slate-500'
         }`}
       >
-        <Highlighter size={14} /> 摘录
+        <Highlighter size={13} /> 摘录
       </button>
       <button
         onClick={() => switchHubTab('quiz')}
-        className={`relative z-10 flex items-center justify-center gap-1 py-2.5 rounded-lg text-sm font-bold transition-colors ${
+        className={`relative z-10 flex items-center justify-center gap-1 py-2.5 rounded-lg text-xs font-bold transition-colors ${
           activeTab === 'quiz' ? (isDarkMode ? 'text-white' : 'text-rose-400') : 'text-slate-500'
         }`}
       >
-        <CircleCheckBig size={14} /> 问答
+        <CircleCheckBig size={13} /> 问答
+      </button>
+      <button
+        onClick={() => switchHubTab('achievements')}
+        className={`relative z-10 flex items-center justify-center gap-1 py-2.5 rounded-lg text-xs font-bold transition-colors ${
+          activeTab === 'achievements' ? (isDarkMode ? 'text-white' : 'text-rose-400') : 'text-slate-500'
+        }`}
+      >
+        <Trophy size={13} /> 成就
       </button>
     </div>
     );
@@ -4293,6 +4325,123 @@ const StudyHub: React.FC<StudyHubProps> = ({
                   </div>
                 );
               })}
+          </div>
+        </div>
+      )}
+
+      {/* Achievements view */}
+      {renderedTab === 'achievements' && (
+        <div className={`flex-1 flex flex-col overflow-hidden ${hubTabAnimClass}`}>
+          <div className="flex items-center justify-between px-6 pt-4 pb-2">
+            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider">成就收藏</h2>
+            <span className="text-xs text-slate-400">{achievements.length} 个</span>
+          </div>
+          <div className="flex-1 overflow-y-auto px-6 pb-24 no-scrollbar">
+            {achievementsLoading && achievements.length === 0 && (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 size={20} className="animate-spin text-slate-400" />
+              </div>
+            )}
+            {!achievementsLoading && achievements.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <Trophy size={40} className="opacity-20 text-slate-400" />
+                <p className="text-sm text-slate-400">还没有成就</p>
+                <p className="text-xs text-slate-500 text-center max-w-[220px]">和角色聊天时，角色会在特别的时刻颁发成就</p>
+              </div>
+            )}
+            <div className="space-y-4">
+              {achievements.map((ach) => (
+                <div
+                  key={ach.id}
+                  style={{
+                    position: 'relative',
+                    borderRadius: '16px',
+                    overflow: 'hidden',
+                    backgroundColor: '#3a2a1a',
+                    backgroundImage: 'radial-gradient(circle, #4a3728 1px, transparent 1px)',
+                    backgroundSize: '8px 8px',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+                    padding: '18px 16px 14px',
+                    fontFamily: "system-ui, -apple-system, 'Noto Sans SC', sans-serif",
+                    color: '#f5edd6',
+                  }}
+                >
+                  {/* 删除按钮 */}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await deleteAchievement(ach.id);
+                      setAchievements((prev) => prev.filter((a) => a.id !== ach.id));
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: '10px',
+                      left: '12px',
+                      background: 'rgba(0,0,0,0.3)',
+                      border: 'none',
+                      color: 'rgba(255,255,255,0.4)',
+                      cursor: 'pointer',
+                      borderRadius: '50%',
+                      width: '22px',
+                      height: '22px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '12px',
+                    }}
+                    aria-label="删除成就"
+                  >
+                    ×
+                  </button>
+                  {/* 达成标签 */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '10px',
+                      right: '12px',
+                      background: 'rgba(211, 84, 94, 0.9)',
+                      color: '#fff',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      letterSpacing: '1px',
+                      transform: 'rotate(2deg)',
+                    }}
+                  >
+                    ✦ 达成!
+                  </div>
+                  {/* 图标 + 标题 */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', padding: '0 30px' }}>
+                    <div style={{ fontSize: '36px', lineHeight: 1, flexShrink: 0, filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.4))' }}>
+                      {ach.icon}
+                    </div>
+                    <div style={{ fontSize: '18px', fontWeight: 900, lineHeight: 1.2, color: '#ffe4a0', textShadow: '1px 1px 2px rgba(0,0,0,0.5)', wordBreak: 'break-word' }}>
+                      {ach.name}
+                    </div>
+                  </div>
+                  {/* 来源 */}
+                  <div style={{ fontSize: '10px', opacity: 0.45, marginBottom: '8px', paddingLeft: '2px' }}>
+                    {ach.characterName}{ach.bookTitle ? ` · ${ach.bookTitle}` : ''} · {new Date(ach.createdAt).toLocaleDateString('zh-CN')}
+                  </div>
+                  {/* 条件 & 奖励 */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', marginBottom: '10px' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <span style={{ color: '#d4a574', fontWeight: 700, flexShrink: 0 }}>条件</span>
+                      <span style={{ opacity: 0.85 }}>{ach.condition}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <span style={{ color: '#d4a574', fontWeight: 700, flexShrink: 0 }}>奖励</span>
+                      <span style={{ color: '#ffe4a0' }}>{ach.reward}</span>
+                    </div>
+                  </div>
+                  {/* 评价 */}
+                  <div style={{ fontSize: '11px', fontStyle: 'italic', opacity: 0.65, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '8px', lineHeight: 1.5, textIndent: '2em' }}>
+                    "{ach.comment}"
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

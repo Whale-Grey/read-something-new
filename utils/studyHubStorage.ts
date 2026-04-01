@@ -1,10 +1,11 @@
-import { Notebook, QuizSession, FavoriteQuote } from '../types';
+import { Notebook, QuizSession, FavoriteQuote, Achievement } from '../types';
 
 const DB_NAME = 'app_study_hub_v1';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const NOTEBOOKS_STORE = 'notebooks';
 const QUIZ_SESSIONS_STORE = 'quiz_sessions';
 const FAVORITE_QUOTES_STORE = 'favorite_quotes';
+const ACHIEVEMENTS_STORE = 'achievements';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 const getUtf8Bytes = (value: string) => new TextEncoder().encode(value).length;
@@ -33,6 +34,9 @@ const openDb = (): Promise<IDBDatabase> => {
       }
       if (!db.objectStoreNames.contains(FAVORITE_QUOTES_STORE)) {
         db.createObjectStore(FAVORITE_QUOTES_STORE);
+      }
+      if (!db.objectStoreNames.contains(ACHIEVEMENTS_STORE)) {
+        db.createObjectStore(ACHIEVEMENTS_STORE);
       }
     };
 
@@ -195,27 +199,70 @@ export const deleteFavoriteQuote = async (id: string): Promise<void> => {
   });
 };
 
-// ─── Archive ───
+// ─── Achievement CRUD ───
 
-export const exportStudyHubForArchive = async (): Promise<{ notebooks: Notebook[]; quizSessions: QuizSession[]; favoriteQuotes: FavoriteQuote[] }> => {
-  const [notebooks, quizSessions, favoriteQuotes] = await Promise.all([getAllNotebooks(), getAllQuizSessions(), getAllFavoriteQuotes()]);
-  return { notebooks, quizSessions, favoriteQuotes };
+export const saveAchievement = async (achievement: Achievement): Promise<void> => {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(ACHIEVEMENTS_STORE, 'readwrite');
+    const store = tx.objectStore(ACHIEVEMENTS_STORE);
+    store.put(achievement, achievement.id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error || new Error('保存成就失败'));
+    tx.onabort = () => reject(tx.error || new Error('保存成就失败'));
+  });
 };
 
-export const restoreStudyHubFromArchive = async (payload: { notebooks?: Notebook[]; quizSessions?: QuizSession[]; favoriteQuotes?: FavoriteQuote[] }): Promise<void> => {
+export const getAllAchievements = async (): Promise<Achievement[]> => {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(ACHIEVEMENTS_STORE, 'readonly');
+    const store = tx.objectStore(ACHIEVEMENTS_STORE);
+    const request = store.getAll();
+    request.onsuccess = () => {
+      const results = (request.result || []) as Achievement[];
+      results.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      resolve(results);
+    };
+    request.onerror = () => reject(request.error || new Error('读取成就列表失败'));
+  });
+};
+
+export const deleteAchievement = async (id: string): Promise<void> => {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(ACHIEVEMENTS_STORE, 'readwrite');
+    const store = tx.objectStore(ACHIEVEMENTS_STORE);
+    store.delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error || new Error('删除成就失败'));
+    tx.onabort = () => reject(tx.error || new Error('删除成就失败'));
+  });
+};
+
+// ─── Archive ───
+
+export const exportStudyHubForArchive = async (): Promise<{ notebooks: Notebook[]; quizSessions: QuizSession[]; favoriteQuotes: FavoriteQuote[]; achievements: Achievement[] }> => {
+  const [notebooks, quizSessions, favoriteQuotes, achievements] = await Promise.all([getAllNotebooks(), getAllQuizSessions(), getAllFavoriteQuotes(), getAllAchievements()]);
+  return { notebooks, quizSessions, favoriteQuotes, achievements };
+};
+
+export const restoreStudyHubFromArchive = async (payload: { notebooks?: Notebook[]; quizSessions?: QuizSession[]; favoriteQuotes?: FavoriteQuote[]; achievements?: Achievement[] }): Promise<void> => {
   if (!payload) return;
   const db = await openDb();
 
   await new Promise<void>((resolve, reject) => {
-    const storeNames = [NOTEBOOKS_STORE, QUIZ_SESSIONS_STORE, FAVORITE_QUOTES_STORE];
+    const storeNames = [NOTEBOOKS_STORE, QUIZ_SESSIONS_STORE, FAVORITE_QUOTES_STORE, ACHIEVEMENTS_STORE];
     const tx = db.transaction(storeNames, 'readwrite');
     const nbStore = tx.objectStore(NOTEBOOKS_STORE);
     const qsStore = tx.objectStore(QUIZ_SESSIONS_STORE);
     const fqStore = tx.objectStore(FAVORITE_QUOTES_STORE);
+    const achStore = tx.objectStore(ACHIEVEMENTS_STORE);
 
     nbStore.clear();
     qsStore.clear();
     fqStore.clear();
+    achStore.clear();
 
     if (Array.isArray(payload.notebooks)) {
       payload.notebooks.forEach((nb) => { if (nb && nb.id) nbStore.put(nb, nb.id); });
@@ -225,6 +272,9 @@ export const restoreStudyHubFromArchive = async (payload: { notebooks?: Notebook
     }
     if (Array.isArray(payload.favoriteQuotes)) {
       payload.favoriteQuotes.forEach((fq) => { if (fq && fq.id) fqStore.put(fq, fq.id); });
+    }
+    if (Array.isArray(payload.achievements)) {
+      payload.achievements.forEach((ach) => { if (ach && ach.id) achStore.put(ach, ach.id); });
     }
 
     tx.oncomplete = () => resolve();
@@ -237,17 +287,20 @@ export const getStudyHubStorageUsageBytes = async (): Promise<{
   notebooksBytes: number;
   quizSessionsBytes: number;
   favoriteQuotesBytes: number;
+  achievementsBytes: number;
   totalBytes: number;
 }> => {
-  const [notebooks, quizSessions, favoriteQuotes] = await Promise.all([getAllNotebooks(), getAllQuizSessions(), getAllFavoriteQuotes()]);
+  const [notebooks, quizSessions, favoriteQuotes, achievements] = await Promise.all([getAllNotebooks(), getAllQuizSessions(), getAllFavoriteQuotes(), getAllAchievements()]);
   const notebooksBytes = notebooks.reduce((sum, item) => sum + getSerializedBytes(item), 0);
   const quizSessionsBytes = quizSessions.reduce((sum, item) => sum + getSerializedBytes(item), 0);
   const favoriteQuotesBytes = favoriteQuotes.reduce((sum, item) => sum + getSerializedBytes(item), 0);
+  const achievementsBytes = achievements.reduce((sum, item) => sum + getSerializedBytes(item), 0);
 
   return {
     notebooksBytes,
     quizSessionsBytes,
     favoriteQuotesBytes,
-    totalBytes: notebooksBytes + quizSessionsBytes + favoriteQuotesBytes,
+    achievementsBytes,
+    totalBytes: notebooksBytes + quizSessionsBytes + favoriteQuotesBytes + achievementsBytes,
   };
 };
