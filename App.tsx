@@ -2161,7 +2161,7 @@ const App: React.FC = () => {
   const resolvedSafeAreaTop = manualSafeAreaTop;
   const resolvedSafeAreaBottom = manualSafeAreaBottom;
   const appViewportHeight = 'calc(var(--app-screen-height) + var(--app-safe-area-bottom-px))';
-  const appWrapperClass = `relative flex flex-col h-full font-sans overflow-hidden transition-colors duration-300 ${isDarkMode ? 'dark-mode bg-[#2d3748] text-slate-200' : 'bg-[#e0e5ec] text-slate-600'}`;
+  const appWrapperClass = `relative flex flex-col h-full font-sans overflow-hidden transition-colors duration-300 ${isDarkMode ? 'dark-mode bg-[#2d3748] text-slate-200' : 'bg-[#F3F3F3] text-slate-600'}`;
   const appWrapperStyle: React.CSSProperties = {
     minHeight: appViewportHeight,
     height: appViewportHeight,
@@ -2327,12 +2327,12 @@ const App: React.FC = () => {
         {currentView === AppView.LIBRARY && (
           <Library
             books={books}
-            onOpenBook={handleOpenBook} 
+            onOpenBook={handleOpenBook}
             onAddBook={handleAddBook}
             onRequestImportBook={handleRequestImportBook}
-            onUpdateBook={handleUpdateBook} 
+            onUpdateBook={handleUpdateBook}
             onDeleteBook={handleDeleteBook}
-            isDarkMode={isDarkMode} 
+            isDarkMode={isDarkMode}
             userSignature={userSignature}
             onUpdateSignature={setUserSignature}
             personas={personas}
@@ -2344,6 +2344,30 @@ const App: React.FC = () => {
             apiConfig={apiConfig}
             ragPresets={effectiveRagPresets}
             activeRagPresetId={activeRagPresetId}
+            mode="home"
+          />
+        )}
+        {currentView === AppView.SHELF && (
+          <Library
+            books={books}
+            onOpenBook={handleOpenBook}
+            onAddBook={handleAddBook}
+            onRequestImportBook={handleRequestImportBook}
+            onUpdateBook={handleUpdateBook}
+            onDeleteBook={handleDeleteBook}
+            isDarkMode={isDarkMode}
+            userSignature={userSignature}
+            onUpdateSignature={setUserSignature}
+            personas={personas}
+            activePersonaId={activePersonaId}
+            onSelectPersona={setActivePersonaId}
+            characters={characters}
+            activeCharacterId={activeCharacterId}
+            onSelectCharacter={setActiveCharacterId}
+            apiConfig={apiConfig}
+            ragPresets={effectiveRagPresets}
+            activeRagPresetId={activeRagPresetId}
+            mode="shelf"
           />
         )}
         {currentView === AppView.STATS && (
@@ -2424,23 +2448,32 @@ const App: React.FC = () => {
 
       {/* Bottom Navigation */}
       <nav
-        className={`relative z-40 border-t ${isDarkMode ? 'bg-[#2d3748] border-[#3a3832]' : 'bg-[#e0e5ec] border-[#d0cec9]'}`}
-        style={{ paddingBottom: `${resolvedSafeAreaBottom}px` }}
+        className={`relative z-40 ${isDarkMode ? 'bg-[#2d3748] border-t border-[#3a3832]' : 'bg-[#F3F3F3]'}`}
+        style={{ paddingBottom: `${resolvedSafeAreaBottom}px`, borderTop: isDarkMode ? undefined : '2px solid #94a3b8' }}
       >
         <div className="flex w-full justify-around items-center py-1.5 px-2">
           <button
             onClick={() => transitionToView(AppView.LIBRARY)}
             disabled={isViewTransitioning}
-            className={`flex flex-col items-center justify-center gap-0.5 w-14 py-1 transition-all ${currentView === AppView.LIBRARY ? 'text-rose-400' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex flex-col items-center justify-center gap-0.5 w-14 py-1 transition-all ${currentView === AppView.LIBRARY ? 'text-[#1A1A1A]' : 'text-slate-400 hover:text-slate-600'}`}
           >
             <LayoutGrid size={22} strokeWidth={currentView === AppView.LIBRARY ? 2.5 : 2} />
+            <span className="text-[10px] font-medium leading-tight">首页</span>
+          </button>
+
+          <button
+            onClick={() => transitionToView(AppView.SHELF)}
+            disabled={isViewTransitioning}
+            className={`flex flex-col items-center justify-center gap-0.5 w-14 py-1 transition-all ${currentView === AppView.SHELF ? 'text-[#1A1A1A]' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            <BookOpen size={22} strokeWidth={currentView === AppView.SHELF ? 2.5 : 2} />
             <span className="text-[10px] font-medium leading-tight">书架</span>
           </button>
 
           <button
             onClick={() => transitionToView(AppView.STATS)}
             disabled={isViewTransitioning}
-            className={`flex flex-col items-center justify-center gap-0.5 w-14 py-1 transition-all ${currentView === AppView.STATS ? 'text-rose-400' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex flex-col items-center justify-center gap-0.5 w-14 py-1 transition-all ${currentView === AppView.STATS ? 'text-[#1A1A1A]' : 'text-slate-400 hover:text-slate-600'}`}
           >
             <PieChart size={22} strokeWidth={currentView === AppView.STATS ? 2.5 : 2} />
             <span className="text-[10px] font-medium leading-tight">统计</span>
@@ -2449,7 +2482,7 @@ const App: React.FC = () => {
           <button
             onClick={() => transitionToView(AppView.STUDY_HUB)}
             disabled={isViewTransitioning}
-            className={`flex flex-col items-center justify-center gap-0.5 w-14 py-1 transition-all ${currentView === AppView.STUDY_HUB ? 'text-rose-400' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex flex-col items-center justify-center gap-0.5 w-14 py-1 transition-all ${currentView === AppView.STUDY_HUB ? 'text-[#1A1A1A]' : 'text-slate-400 hover:text-slate-600'}`}
           >
             <Sparkles size={22} strokeWidth={currentView === AppView.STUDY_HUB ? 2.5 : 2} />
             <span className="text-[10px] font-medium leading-tight">共读集</span>
@@ -2458,7 +2491,7 @@ const App: React.FC = () => {
           <button
             onClick={() => transitionToView(AppView.SETTINGS)}
             disabled={isViewTransitioning}
-            className={`flex flex-col items-center justify-center gap-0.5 w-14 py-1 transition-all ${currentView === AppView.SETTINGS ? 'text-rose-400' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex flex-col items-center justify-center gap-0.5 w-14 py-1 transition-all ${currentView === AppView.SETTINGS ? 'text-[#1A1A1A]' : 'text-slate-400 hover:text-slate-600'}`}
           >
             <SettingsIcon size={22} strokeWidth={currentView === AppView.SETTINGS ? 2.5 : 2} />
             <span className="text-[10px] font-medium leading-tight">设置</span>

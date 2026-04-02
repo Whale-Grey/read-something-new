@@ -5,7 +5,7 @@
 
 :root {
         /* ========== 墨水屏风格变量 ========== */
-        --neu-bg: #f5f4ef;            /* 微暖白纸色 */
+        --neu-bg: #F3F3F3;            /* 微暖白纸色 */
         --neu-text: #1a1a1a;          /* 近纯黑文字 */
         --neu-shadow-light: transparent;  /* 去掉亮面阴影 */
         --neu-shadow-dark: transparent;   /* 去掉暗面阴影 */

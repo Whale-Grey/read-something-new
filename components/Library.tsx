@@ -29,6 +29,7 @@ interface LibraryProps {
   apiConfig: ApiConfig;
   ragPresets: RagPreset[];
   activeRagPresetId: string;
+  mode?: 'home' | 'shelf';
 }
 
 // Custom Feather Icon provided by user
@@ -40,7 +41,7 @@ const FeatherIcon = ({ size = 16, className = "" }: { size?: number, className?:
 
 // Updated SVG Book Cover
 const DefaultBookCover = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-slate-400 p-4" fill="currentColor" viewBox="0 0 16 16">
+  <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-slate-400 p-8" fill="currentColor" viewBox="0 0 16 16">
     <path d="M1 2.828c.885-.37 2.154-.769 3.388-.893 1.33-.134 2.458.063 3.112.752v9.746c-.935-.53-2.12-.603-3.213-.493-1.18.12-2.37.461-3.287.811zm7.5-.141c.654-.689 1.782-.886 3.112-.752 1.234.124 2.503.523 3.388.893v9.923c-.918-.35-2.107-.692-3.287-.81-1.094-.111-2.278-.039-3.213.492zM8 1.783C7.015.936 5.587.81 4.287.94c-1.514.153-3.042.672-3.994 1.105A.5.5 0 0 0 0 2.5v11a.5.5 0 0 0 .707.455c.882-.4 2.303-.881 3.68-1.02 1.409-.142 2.59.087 3.223.877a.5.5 0 0 0 .78 0c.633-.79 1.814-1.019 3.222-.877 1.378.139 2.8.62 3.681 1.02A.5.5 0 0 0 16 13.5v-11a.5.5 0 0 0-.293-.455c-.952-.433-2.48-.952-3.994-1.105C10.413.809 8.985.936 8 1.783"/>
   </svg>
 );
@@ -126,7 +127,8 @@ const Library: React.FC<LibraryProps> = ({
   onSelectCharacter,
   apiConfig,
   ragPresets,
-  activeRagPresetId
+  activeRagPresetId,
+  mode = 'home'
 }) => {
   const MODAL_TRANSITION_MS = 240;
   const containerClass = isDarkMode ? 'bg-[#2d3748] text-slate-200' : 'neu-bg text-slate-600';
@@ -1454,58 +1456,54 @@ const Library: React.FC<LibraryProps> = ({
   return (
     <>
       <div className={`flex-1 flex flex-col p-6 pb-28 overflow-y-auto no-scrollbar ${containerClass}`}>
-        <header className="flex justify-between items-start mb-8 pt-2 relative">
-          <div className="flex-1 pr-4 min-w-0">
-            <h1 className={`text-2xl font-bold ${headingClass}`}>书架</h1>
-            
-            {/* Editable Signature */}
-            <div className="mt-1 h-8 flex items-center">
-              {isEditingSig ? (
-                 <div className="flex items-center gap-2 w-full max-w-[240px]">
-                   <input 
-                     autoFocus
-                     type="text" 
-                     value={tempSig}
-                     onChange={(e) => setTempSig(e.target.value)}
-                     onBlur={handleSaveSig}
-                     onKeyDown={handleKeyDown}
-                     className={`w-full min-w-0 text-sm px-2 py-1 rounded-lg outline-none ${inputClass}`}
-                   />
-                   <button onMouseDown={handleSaveSig} className="text-emerald-500 flex-shrink-0"><Check size={16} /></button>
-                 </div>
-              ) : (
-                 <div 
-                   onClick={() => setIsEditingSig(true)}
-                   className={`group flex items-center justify-between gap-2 cursor-pointer py-1 -ml-1 px-1 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/5 w-full max-w-[240px]`}
-                 >
-                   <p className={`text-sm ${subTextClass} truncate mr-2`}>{userSignature || <span className="opacity-50 italic">点击编辑签名...</span>}</p>
-                   <Edit2 size={12} className="opacity-0 group-hover:opacity-50 text-slate-400 flex-shrink-0" />
-                 </div>
-              )}
-            </div>
+        {mode === 'home' && <header className="mb-8 pt-2 relative">
+          {/* Editable Signature */}
+          <div className="mb-4">
+            {isEditingSig ? (
+               <div className="flex items-start gap-2">
+                 <textarea
+                   autoFocus
+                   rows={3}
+                   value={tempSig}
+                   onChange={(e) => setTempSig(e.target.value)}
+                   onBlur={handleSaveSig}
+                   onKeyDown={handleKeyDown}
+                   className={`w-full min-w-0 px-2 py-1 rounded-lg outline-none resize-none ${inputClass}`}
+                   style={{ fontSize: '28px', fontWeight: 600, fontFamily: "'MiSans', 'PingFang SC', 'Noto Sans SC', sans-serif", color: '#1A1A1A' }}
+                 />
+                 <button onMouseDown={handleSaveSig} className="text-emerald-500 flex-shrink-0 mt-2"><Check size={16} /></button>
+               </div>
+            ) : (
+               <div
+                 onClick={() => setIsEditingSig(true)}
+                 className="group flex items-start gap-2 cursor-pointer"
+               >
+                 <p style={{ fontSize: '28px', fontWeight: 600, fontFamily: "'MiSans', 'PingFang SC', 'Noto Sans SC', sans-serif", color: '#1A1A1A', lineHeight: 1.3 }}>
+                   {userSignature || <span className="opacity-40 italic" style={{ fontSize: '18px' }}>点击编辑签名...</span>}
+                 </p>
+                 <Edit2 size={14} className="opacity-0 group-hover:opacity-40 text-slate-400 flex-shrink-0 mt-2" />
+               </div>
+            )}
           </div>
 
           {/* Dual Avatars Area */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2">
               
               {/* 1. Character Avatar & Menu */}
               <div className="relative" ref={charMenuRef}>
-                  <div 
+                  <div
                      onClick={() => setIsCharMenuOpen(!isCharMenuOpen)}
                      className="flex flex-col items-center gap-1 cursor-pointer group"
                   >
-                     <div className={`relative w-12 h-12 rounded-full flex items-center justify-center overflow-hidden border-2 border-transparent transition-all group-hover:border-rose-300 ${isDarkMode ? 'bg-[#2d3748] shadow-[5px_5px_10px_#232b39,-5px_-5px_10px_#374357]' : 'neu-btn'}`}>
+                     <div className={`w-12 h-12 rounded-full flex items-center justify-center overflow-hidden border-2 border-transparent transition-all group-hover:border-rose-300 ${isDarkMode ? 'bg-[#2d3748] shadow-[5px_5px_10px_#232b39,-5px_-5px_10px_#374357]' : 'neu-btn'}`}>
                        {renderAvatar(activeCharacter?.avatar, false, !activeCharacterId, 'CHAR')}
-                     </div>
-                     <div className={`absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] shadow-sm z-10 border border-white/10 ${isDarkMode ? 'bg-[#2d3748] text-blue-400' : 'bg-[#e0e5ec] text-blue-400'}`}>
-                        <FeatherIcon size={12} />
                      </div>
                      <span className="text-[10px] font-bold text-slate-400 group-hover:text-rose-400 transition-colors max-w-[50px] truncate">
                        {charDisplayName}
                      </span>
                   </div>
                   {isCharMenuOpen && (
-                    <div className={`absolute right-0 top-14 w-48 rounded-2xl p-2 z-50 animate-fade-in ${cardClass} border border-slate-400/10`}>
+                    <div className={`absolute left-0 top-14 w-48 rounded-2xl p-2 z-50 animate-fade-in ${cardClass} border border-slate-400/10`}>
                        <div className="px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
                          切换角色
                        </div>
@@ -1553,22 +1551,19 @@ const Library: React.FC<LibraryProps> = ({
 
               {/* 2. User Avatar & Menu */}
               <div className="relative" ref={menuRef}>
-                  <div 
+                  <div
                      onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                      className="flex flex-col items-center gap-1 cursor-pointer group"
                   >
-                     <div className={`relative w-12 h-12 rounded-full flex items-center justify-center overflow-hidden border-2 border-transparent transition-all group-hover:border-rose-300 ${isDarkMode ? 'bg-[#2d3748] shadow-[5px_5px_10px_#232b39,-5px_-5px_10px_#374357]' : 'neu-btn'}`}>
+                     <div className={`w-12 h-12 rounded-full flex items-center justify-center overflow-hidden border-2 border-transparent transition-all group-hover:border-rose-300 ${isDarkMode ? 'bg-[#2d3748] shadow-[5px_5px_10px_#232b39,-5px_-5px_10px_#374357]' : 'neu-btn'}`}>
                        {renderAvatar(activePersona?.avatar, !activePersonaId, false, 'USER')}
-                     </div>
-                     <div className={`absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] shadow-sm z-10 border border-white/10 ${isDarkMode ? 'bg-[#2d3748] text-blue-400' : 'bg-[#e0e5ec] text-blue-400'}`}>
-                        <UserCircle size={12} />
                      </div>
                      <span className="text-[10px] font-bold text-slate-400 group-hover:text-rose-400 transition-colors max-w-[60px] truncate">
                        {userDisplayName}
                      </span>
                   </div>
                   {isProfileMenuOpen && (
-                    <div className={`absolute right-0 top-14 w-48 rounded-2xl p-2 z-50 animate-fade-in ${cardClass} border border-slate-400/10`}>
+                    <div className={`absolute left-0 top-14 w-48 rounded-2xl p-2 z-50 animate-fade-in ${cardClass} border border-slate-400/10`}>
                        <div className="px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
                          切换用户
                        </div>
@@ -1610,17 +1605,18 @@ const Library: React.FC<LibraryProps> = ({
                   )}
               </div>
           </div>
-        </header>
+        </header>}
 
-        {/* Recent Read Card - Always visible if book exists, regardless of view mode if searching is inactive */}
-        {recentBook && (
+        {/* Recent Read Card - only in home mode */}
+        {mode === 'home' && recentBook && (
           <div className="mb-8">
-            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 pl-1">最近阅读</h2>
-            <div 
+            <h2 className="font-bold mb-4" style={{ fontSize: '24px', color: '#1A1A1A' }}>最近阅读</h2>
+            <div
               onClick={() => onOpenBook(recentBook)}
-              className={`${cardClass} app-card-press p-5 flex gap-5 cursor-pointer rounded-2xl relative group`}
+              className={`${cardClass} app-card-press pt-4 pb-4 pr-5 pl-0 flex gap-5 cursor-pointer rounded-2xl relative group`}
+              style={{ border: 'none' }}
             >
-              <div className="w-20 h-28 flex-shrink-0 rounded-lg overflow-hidden shadow-md app-card-press-media relative">
+              <div className="flex-shrink-0 overflow-hidden app-card-press-media relative" style={{ width: '120px', height: '160px', borderRadius: '2px', border: '1px solid #1A1A1A' }}>
                 {recentBook.coverUrl ? (
                     <ResolvedImage src={recentBook.coverUrl} alt="Cover" className="w-full h-full object-cover opacity-90" />
                 ) : (
@@ -1630,28 +1626,17 @@ const Library: React.FC<LibraryProps> = ({
                   <span className="absolute top-1.5 right-1.5 w-3 h-3 rounded-full shadow-md animate-pulse z-10" style={{ backgroundColor: 'rgb(var(--theme-500) / 1)' }} />
                 )}
               </div>
-              <div className="flex flex-col justify-between flex-1 py-1">
-                <div>
-                  <h3 className={`text-lg font-bold line-clamp-1 ${headingClass}`}>{recentBook.title}</h3>
-                  <p className={`text-sm ${subTextClass}`}>{recentBook.author}</p>
-                </div>
-                <div>
-                   <div className="flex justify-between text-xs text-slate-400 mb-2">
-                     <span>已读 {recentBook.progress}%</span>
-                     <span><Clock size={12} className="inline mr-1"/>{formatLastReadTime(recentBook.lastReadAt, recentBook.lastRead)}</span>
-                   </div>
-                   <div className={`w-full h-2 rounded-full overflow-hidden p-[2px] ${pressedClass}`}>
-                     {/* Theme colored progress bar */}
-                     <div className="h-full bg-rose-400 rounded-full opacity-80" style={{ width: `${recentBook.progress}%` }} />
-                   </div>
-                </div>
+              <div className="flex flex-col flex-1 py-1 gap-1">
+                <h3 className={`text-lg font-bold line-clamp-2 ${headingClass}`}>{recentBook.title}</h3>
+                <p className={`text-sm ${subTextClass}`}>{recentBook.author}</p>
+                <p className="text-xs text-slate-400 mt-1">已读 {recentBook.progress}%</p>
               </div>
               
               {/* Edit Button for Recent Book */}
               {!isBuiltInBook(recentBook.id) && (
               <button
                 onClick={(e) => openEditModal(e, recentBook)}
-                className={`absolute top-4 right-4 ${compactEditButtonClass}`}
+                className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-rose-400 opacity-50 hover:opacity-100 transition-all duration-150 active:scale-95 ${isDarkMode ? 'bg-[#2d3748] shadow-[5px_5px_10px_#232b39,-5px_-5px_10px_#374357]' : 'neu-btn'}`}
               >
                 <Edit2 size={16} />
               </button>
@@ -1660,8 +1645,8 @@ const Library: React.FC<LibraryProps> = ({
           </div>
         )}
 
-        {/* Grid Header with Search & Filter & Sort */}
-        <div className="mb-4">
+        {/* Grid Header with Search & Filter & Sort - only in shelf mode */}
+        {mode === 'shelf' && <div className="mb-4">
           <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3 pl-1">
              {isSearching ? '搜索结果' : '全部书籍'}
           </h2>
@@ -1743,10 +1728,10 @@ const Library: React.FC<LibraryProps> = ({
                  </button>
              </div>
           </div>
-        </div>
+        </div>}
 
-        {/* View Mode Rendering */}
-        {viewMode === 'grid' ? (
+        {/* View Mode Rendering - only in shelf mode */}
+        {mode === 'shelf' && (viewMode === 'grid' ? (
            <div key="grid" className="grid grid-cols-2 gap-6 animate-fade-in">
                {/* Add New Book Button (Import) - Only in Grid or List? Let's keep it in both but style differently if list */}
                 <div 
@@ -1896,7 +1881,7 @@ const Library: React.FC<LibraryProps> = ({
                  </div>
                ))}
            </div>
-        )}
+        ))}
       </div>
 
       {/* Edit Book Modal */}

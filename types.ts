@@ -128,6 +128,7 @@ export interface AICharacter {
 
 export enum AppView {
   LIBRARY = 'LIBRARY',
+  SHELF = 'SHELF',
   READER = 'READER',
   STATS = 'STATS',
   STUDY_HUB = 'STUDY_HUB',
