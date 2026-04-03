@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MessageSquare, FileText, HelpCircle, Trophy, Plus, Trash2, Loader2, ChevronLeft, Check, X } from 'lucide-react';
 import {
-  Book, FavoriteQuote, Achievement, QuizSession, Notebook, StudyNote, QuizQuestion, ApiConfig,
+  Book, FavoriteQuote, Achievement, QuizSession, Notebook, StudyNote, QuizQuestion, ApiConfig, ReaderHighlightRange,
 } from '../types';
+import { getBookContent } from '../utils/bookContentStorage';
 import { Character, Persona } from './settings/types';
 import { buildConversationKey, readConversationBucket, ChatBubble, CHAT_STORE_UPDATED_EVENT } from '../utils/readerChatRuntime';
 import {
@@ -104,11 +105,40 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [noteSaving, setNoteSaving] = useState(false);
+  const [bookHighlights, setBookHighlights] = useState<Array<{ chapterKey: string; start: number; end: number; text: string; color: string }>>([]);
+  const [editingHighlightNoteId, setEditingHighlightNoteId] = useState<string | null>(null);
+  const [editingHighlightNoteText, setEditingHighlightNoteText] = useState('');
 
   const loadNotes = useCallback(async () => {
-    const [nbs, qs] = await Promise.all([getAllNotebooks(), getAllFavoriteQuotes()]);
+    const [nbs, qs, bookContent] = await Promise.all([
+      getAllNotebooks(),
+      getAllFavoriteQuotes(),
+      getBookContent(recentBook.id),
+    ]);
     setNotebooks(nbs.filter((nb) => nb.boundBookIds.includes(recentBook.id)));
     setQuotes(qs.filter((q) => q.bookId === recentBook.id));
+
+    // Extract highlight ranges with text
+    const highlightsByChapter = bookContent?.readerState?.highlightsByChapter || {};
+    const fullText = bookContent?.fullText || '';
+    const chapters = bookContent?.chapters || [];
+
+    const highlights: Array<{ chapterKey: string; start: number; end: number; text: string; color: string }> = [];
+    for (const [chapterKey, ranges] of Object.entries(highlightsByChapter)) {
+      const chapterText = chapterKey === 'full'
+        ? fullText
+        : (() => {
+            const idx = parseInt(chapterKey.replace('chapter-', ''), 10);
+            return chapters[idx]?.content || '';
+          })();
+      for (const range of (ranges as ReaderHighlightRange[])) {
+        const text = chapterText.slice(range.start, range.end).trim();
+        if (text) {
+          highlights.push({ chapterKey, start: range.start, end: range.end, text, color: range.color });
+        }
+      }
+    }
+    setBookHighlights(highlights);
   }, [recentBook.id]);
 
   const handleSaveNote = async () => {
@@ -383,6 +413,91 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
               </button>
             )}
 
+            {/* 划线 */}
+            {(() => {
+              const highlightNotesList = notebooks.flatMap(nb =>
+                nb.notes.filter(n => n.highlightRef).map(n => ({ note: n, nb }))
+              );
+              const rawHighlights = bookHighlights.filter(h =>
+                !highlightNotesList.some(hn =>
+                  hn.note.highlightRef?.chapterKey === h.chapterKey &&
+                  hn.note.highlightRef?.start === h.start &&
+                  hn.note.highlightRef?.end === h.end
+                )
+              );
+
+              if (highlightNotesList.length === 0 && rawHighlights.length === 0) return null;
+
+              return (
+                <>
+                  <div className={`text-xs font-bold uppercase tracking-wider ${subText} mt-2`}>划线</div>
+
+                  {/* Highlights with notes */}
+                  {highlightNotesList.map(({ note, nb }) => (
+                    <div key={note.id} className={`rounded-2xl p-3 ${cardBg}`}
+                      style={{ border: `1px solid ${isDarkMode ? '#4b5563' : '#e5e7eb'}` }}>
+                      {/* Highlighted text */}
+                      <div className="text-xs px-2 py-1 rounded mb-2"
+                        style={{ backgroundColor: '#fef08a33', borderLeft: '3px solid #fef08a' }}>
+                        <p className={`text-xs line-clamp-2 ${subText}`}>"{note.highlightRef!.text}"</p>
+                      </div>
+                      {/* Note content */}
+                      {editingHighlightNoteId === note.id ? (
+                        <div className="flex flex-col gap-2">
+                          <textarea
+                            autoFocus
+                            value={editingHighlightNoteText}
+                            onChange={(e) => setEditingHighlightNoteText(e.target.value)}
+                            rows={3}
+                            className={`w-full text-sm outline-none resize-none bg-transparent ${text}`}
+                          />
+                          <div className="flex justify-end gap-2">
+                            <button onClick={() => setEditingHighlightNoteId(null)}
+                              className={`px-3 py-1 rounded-full text-xs ${subText}`}>取消</button>
+                            <button onClick={async () => {
+                              const updated = { ...nb, notes: nb.notes.map(n2 => n2.id === note.id ? { ...n2, content: editingHighlightNoteText, updatedAt: Date.now() } : n2), updatedAt: Date.now() };
+                              await saveNotebook(updated);
+                              setEditingHighlightNoteId(null);
+                              await loadNotes();
+                            }} className="px-3 py-1 rounded-full text-xs font-bold bg-[#1A1A1A] text-white">保存</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <p className={`text-sm ${text}`}>{note.content}</p>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className={`text-[10px] ${subText}`}>{formatDate(note.updatedAt)}</span>
+                            <div className="flex gap-2">
+                              <button onClick={() => { setEditingHighlightNoteId(note.id); setEditingHighlightNoteText(note.content); }}
+                                className={`text-xs ${subText} hover:text-slate-600`}>编辑</button>
+                              <button onClick={async () => {
+                                const updated = { ...nb, notes: nb.notes.filter(n2 => n2.id !== note.id), updatedAt: Date.now() };
+                                await saveNotebook(updated);
+                                await loadNotes();
+                              }} className="text-slate-300 hover:text-rose-400 transition-colors">
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Raw highlights (no note) */}
+                  {rawHighlights.map((h) => (
+                    <div key={`${h.chapterKey}-${h.start}`} className={`rounded-2xl p-3 ${cardBg}`}
+                      style={{ border: `1px solid ${isDarkMode ? '#4b5563' : '#e5e7eb'}` }}>
+                      <div className="px-2 py-1 rounded"
+                        style={{ backgroundColor: h.color ? `${h.color}33` : '#fef08a33', borderLeft: `3px solid ${h.color || '#fef08a'}` }}>
+                        <p className={`text-xs line-clamp-3 ${subText}`}>"{h.text}"</p>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              );
+            })()}
+
             {/* 摘录 */}
             {quotes.length > 0 && (
               <>
@@ -403,10 +518,10 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
             )}
 
             {/* 笔记 */}
-            {notebooks.flatMap((nb) => nb.notes).length > 0 && (
+            {notebooks.flatMap((nb) => nb.notes.filter(n => !n.highlightRef)).length > 0 && (
               <>
                 <div className={`text-xs font-bold uppercase tracking-wider ${subText} mt-2`}>笔记</div>
-                {notebooks.flatMap((nb) => nb.notes.map((n) => ({ note: n, nb }))).map(({ note, nb }) => (
+                {notebooks.flatMap((nb) => nb.notes.filter(n => !n.highlightRef).map((n) => ({ note: n, nb }))).map(({ note, nb }) => (
                   <div key={note.id} className={`rounded-2xl p-3 ${cardBg}`}
                     style={{ border: `1px solid ${isDarkMode ? '#4b5563' : '#e5e7eb'}` }}>
                     <p className={`text-sm line-clamp-3 ${text}`} style={{ fontFamily: '"Noto Serif SC", serif' }}>
@@ -418,7 +533,7 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
               </>
             )}
 
-            {quotes.length === 0 && notebooks.flatMap((nb) => nb.notes).length === 0 && !isAddingNote && (
+            {quotes.length === 0 && notebooks.flatMap((nb) => nb.notes).length === 0 && bookHighlights.length === 0 && !isAddingNote && (
               <div className={`text-center py-6 text-sm ${subText}`}>暂无笔记或摘录</div>
             )}
           </div>

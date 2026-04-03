@@ -156,6 +156,12 @@ export interface StudyNote {
   createdAt: number;
   updatedAt: number;
   commentThreads: StudyNoteCommentThread[];
+  highlightRef?: {
+    chapterKey: string;
+    start: number;
+    end: number;
+    text: string;
+  };
 }
 
 export interface Notebook {

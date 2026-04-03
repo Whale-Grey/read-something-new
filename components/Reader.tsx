@@ -22,6 +22,7 @@ import {
   ApiPreset,
   Book,
   Chapter,
+  Notebook,
   RagApiConfigResolver,
   ReaderAiUnderlineRange,
   ReaderBookmarkState,
@@ -30,9 +31,11 @@ import {
   ReaderHighlightRange,
   ReaderPositionState,
   ReaderSessionSnapshot,
+  StudyNote,
 } from '../types';
 import { Character, Persona, WorldBookEntry } from './settings/types';
 import { getBookContent, saveBookReaderState } from '../utils/bookContentStorage';
+import { getAllNotebooks, saveNotebook } from '../utils/studyHubStorage';
 import { buildConversationKey, persistConversationBucket, readConversationBucket } from '../utils/readerChatRuntime';
 import { getImageBlobByRef, isImageRef } from '../utils/imageStorage';
 import { resolveVisibleReaderTextRange, resolveFullViewportTextRange } from '../utils/readerVisibleRange';
@@ -738,9 +741,11 @@ const Reader: React.FC<ReaderProps> = ({
   const [selectionPopup, setSelectionPopup] = useState<{
     x: number;
     y: number;
-    type: 'add' | 'remove';
+    type: 'add' | 'remove' | 'note';
     removeCharIdx?: number;
+    highlightRange?: { start: number; end: number; text: string };
   } | null>(null);
+  const [highlightNoteText, setHighlightNoteText] = useState('');
   const [highlightRangesByChapter, setHighlightRangesByChapter] = useState<Record<string, TextHighlightRange[]>>({});
   const [aiUnderlineRangesByChapter, setAiUnderlineRangesByChapter] = useState<Record<string, TextAiUnderlineRange[]>>({});
   const [bookmarks, setBookmarks] = useState<ReaderBookmark[]>([]);
@@ -3108,16 +3113,63 @@ const Reader: React.FC<ReaderProps> = ({
     setSelectionPopup(null);
   };
 
+  const handleSaveHighlightNote = async () => {
+    if (!highlightNoteText.trim() || !selectionPopup?.highlightRange || !activeBook) return;
+    const { start, end, text: highlightText } = selectionPopup.highlightRange;
+    const newNote: StudyNote = {
+      id: `note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      content: highlightNoteText.trim(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      commentThreads: [],
+      highlightRef: {
+        chapterKey: highlightStorageKey,
+        start,
+        end,
+        text: highlightText,
+      },
+    };
+    try {
+      const allNbs = await getAllNotebooks();
+      let targetNb = allNbs.find(nb => nb.boundBookIds.includes(activeBook.id));
+      if (!targetNb) {
+        targetNb = {
+          id: `nb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          title: activeBook.title,
+          personaId: '',
+          boundBookIds: [activeBook.id],
+          notes: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+      }
+      const updated: Notebook = {
+        ...targetNb,
+        notes: [...targetNb.notes, newNote],
+        updatedAt: Date.now(),
+      };
+      await saveNotebook(updated);
+    } catch (e) {
+      console.error('保存划线笔记失败', e);
+    }
+    setHighlightNoteText('');
+    setSelectionPopup(null);
+  };
+
   const handleArticleClick = (e: React.MouseEvent<HTMLElement>) => {
     const target = e.target as HTMLElement;
     const segSpan = target.closest('[data-reader-segment="1"]') as HTMLElement | null;
     if (segSpan && segSpan.style.backgroundColor) {
       const charIdx = parseInt(segSpan.dataset.start || '0', 10);
+      // Find the full highlight range containing this index
+      const range = currentHighlightRanges.find(r => r.start <= charIdx && charIdx < r.end);
+      const highlightText = range ? readerTextForHighlighting.slice(range.start, range.end) : '';
       setSelectionPopup({
         x: e.clientX,
         y: e.clientY - 8,
         type: 'remove',
         removeCharIdx: charIdx,
+        highlightRange: range ? { start: range.start, end: range.end, text: highlightText } : undefined,
       });
       e.preventDefault();
       return;
@@ -4104,17 +4156,12 @@ const Reader: React.FC<ReaderProps> = ({
       {/* Selection highlight bottom bar */}
       {selectionPopup && (
         <div
-          className="fixed z-50 left-0 right-0 flex items-center justify-center gap-4 px-6 py-3 shadow-lg"
-          style={{
-            bottom: 0,
-            backgroundColor: '#1A1A1A',
-            color: '#fff',
-            pointerEvents: 'auto',
-          }}
+          className="fixed z-50 left-0 right-0 shadow-lg"
+          style={{ bottom: 0, backgroundColor: '#1A1A1A', color: '#fff', pointerEvents: 'auto' }}
           onPointerDown={(e) => e.stopPropagation()}
         >
-          {selectionPopup.type === 'add' ? (
-            <>
+          {selectionPopup.type === 'add' && (
+            <div className="flex items-center justify-center gap-4 px-6 py-3">
               <button
                 onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleApplySelectionHighlight(); }}
                 className="flex items-center gap-2 px-6 py-2 rounded-full bg-white/15 active:bg-white/25 text-sm font-bold transition-colors"
@@ -4127,12 +4174,19 @@ const Reader: React.FC<ReaderProps> = ({
               >
                 取消
               </button>
-            </>
-          ) : (
-            <>
+            </div>
+          )}
+          {selectionPopup.type === 'remove' && (
+            <div className="flex items-center justify-center gap-4 px-6 py-3">
+              <button
+                onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setHighlightNoteText(''); setSelectionPopup(prev => prev ? { ...prev, type: 'note' } : null); }}
+                className="flex items-center gap-2 px-6 py-2 rounded-full bg-white/15 active:bg-white/25 text-sm font-bold transition-colors"
+              >
+                写想法
+              </button>
               <button
                 onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleRemoveHighlight(selectionPopup.removeCharIdx ?? 0); }}
-                className="flex items-center gap-2 px-6 py-2 rounded-full bg-white/15 active:bg-white/25 text-sm font-bold transition-colors"
+                className="flex items-center gap-2 px-6 py-2 rounded-full text-sm text-white/50 active:text-white/80 transition-colors"
               >
                 取消划线
               </button>
@@ -4142,7 +4196,38 @@ const Reader: React.FC<ReaderProps> = ({
               >
                 关闭
               </button>
-            </>
+            </div>
+          )}
+          {selectionPopup.type === 'note' && (
+            <div className="flex flex-col gap-2 px-4 py-3">
+              {selectionPopup.highlightRange?.text && (
+                <div className="text-xs text-white/50 px-1 line-clamp-2">
+                  "{selectionPopup.highlightRange.text}"
+                </div>
+              )}
+              <textarea
+                autoFocus
+                value={highlightNoteText}
+                onChange={(e) => setHighlightNoteText(e.target.value)}
+                placeholder="写下你的想法..."
+                rows={3}
+                className="w-full bg-white/10 text-white text-sm rounded-xl px-3 py-2 outline-none resize-none placeholder-white/30"
+              />
+              <div className="flex justify-end gap-3">
+                <button
+                  onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setSelectionPopup(null); setHighlightNoteText(''); }}
+                  className="px-4 py-1.5 rounded-full text-xs text-white/50"
+                >
+                  取消
+                </button>
+                <button
+                  onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleSaveHighlightNote(); }}
+                  className="px-4 py-1.5 rounded-full text-xs font-bold bg-white/20 active:bg-white/30"
+                >
+                  保存
+                </button>
+              </div>
+            </div>
           )}
         </div>
       )}

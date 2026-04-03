@@ -913,7 +913,7 @@ const buildAiPromptLineItems = (params: BuildAiPromptParams): PromptLineItem[] =
   pushPromptLine(lines, 'otherInstructions', '- 用户分享了深刻的阅读感悟');
   pushPromptLine(lines, 'otherInstructions', '- 用户坚持阅读了很长时间');
   pushPromptLine(lines, 'otherInstructions', '每次回复最多输出一个成就。');
-  pushPromptLine(lines, 'otherInstructions', '成就格式：【成就：成就名称｜图标：一个贴切的emoji｜条件：简短描述触发原因｜评价：模仿极乐迪斯科的文学风格写一句点评】');
+  pushPromptLine(lines, 'otherInstructions', '成就格式：【成就：成就名称｜图标：一个贴切的emoji｜条件：简短描述触发原因｜评价：写一句简短有趣的点评】');
   pushPromptLine(lines, 'otherInstructions', '注意：整个成就必须在一条 [气泡] 里完整输出，不要拆成多条。');
   pushPromptLine(lines, 'otherInstructions', '</tone_and_style>');
   pushPromptLine(lines, 'otherInstructions', '');
