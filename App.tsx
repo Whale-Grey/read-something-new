@@ -1,18 +1,15 @@
 ﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { BookOpen, PieChart, Settings as SettingsIcon, LayoutGrid, Sparkles, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { BookOpen, Settings as SettingsIcon, LayoutGrid, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import Library from './components/Library';
 import Reader from './components/Reader';
-import Stats from './components/Stats';
-import StudyHub from './components/StudyHub';
 import Settings from './components/Settings';
-import { AppView, Book, Chapter, ApiConfig, ApiPreset, ApiProvider, AppSettings, ReaderSessionSnapshot, RagPreset, TtsConfig, TtsPreset } from './types';
+import { AppView, Book, Chapter, ApiConfig, ApiPreset, ApiProvider, AppSettings, ReaderSessionSnapshot, RagPreset } from './types';
 import { Persona, Character, WorldBookEntry } from './components/settings/types';
 import { deleteImageByRef, migrateDataUrlToImageRef } from './utils/imageStorage';
 import { compactBookForState, deleteBookContent, getBookContent, migrateInlineBookContent, saveBookContent } from './utils/bookContentStorage';
 import { buildConversationKey, readConversationBucket, persistConversationBucket } from './utils/readerChatRuntime';
 import { BUILT_IN_TUTORIAL_BOOK_ID, BUILT_IN_TUTORIAL_VERSION, createBuiltInTutorialBook, migrateTutorialImages, isBuiltInBook, markTutorialUnread, clearTutorialUnread } from './utils/builtInTutorialBook';
 import { buildCharacterWorldBookSections, buildReadingContextSnapshot, runConversationGeneration } from './utils/readerAiEngine';
-import { DEFAULT_TTS_CONFIG } from './utils/ttsEngine';
 import {
   DEFAULT_NEUMORPHISM_BUBBLE_CSS_PRESET_ID,
   DEFAULT_NEUMORPHISM_BUBBLE_CSS,
@@ -705,20 +702,6 @@ const App: React.FC = () => {
     localStorage.getItem(ACTIVE_RAG_PRESET_ID_STORAGE_KEY) || DEFAULT_RAG_PRESET_ID
   );
 
-  // TTS Config
-  const [ttsConfig, setTtsConfig] = useState<TtsConfig>(() => {
-    try {
-      const saved = localStorage.getItem('app_tts_config');
-      return saved ? { ...DEFAULT_TTS_CONFIG, ...JSON.parse(saved) } : DEFAULT_TTS_CONFIG;
-    } catch { return DEFAULT_TTS_CONFIG; }
-  });
-  const [ttsPresets, setTtsPresets] = useState<TtsPreset[]>(() => {
-    try {
-      const saved = localStorage.getItem('app_tts_presets');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
-
   // General App Settings (Automation, Appearance)
   const [appSettings, setAppSettings] = useState<AppSettings>(() => {
     try {
@@ -1112,8 +1095,6 @@ const App: React.FC = () => {
   }, [books]);
   useEffect(() => { safeSetStorageItem('app_api_config', JSON.stringify(apiConfig)); }, [apiConfig]);
   useEffect(() => { safeSetStorageItem('app_api_presets', JSON.stringify(apiPresets)); }, [apiPresets]);
-  useEffect(() => { safeSetStorageItem('app_tts_config', JSON.stringify(ttsConfig)); }, [ttsConfig]);
-  useEffect(() => { safeSetStorageItem('app_tts_presets', JSON.stringify(ttsPresets)); }, [ttsPresets]);
   useEffect(() => { safeSetStorageItem('app_settings', JSON.stringify(appSettings)); }, [appSettings]);
   useEffect(() => { safeSetStorageItem('app_personas', JSON.stringify(personas)); }, [personas]);
   useEffect(() => { safeSetStorageItem('app_characters', JSON.stringify(characters)); }, [characters]);
@@ -2150,12 +2131,6 @@ const App: React.FC = () => {
     showNotification('书本已删除');
   };
 
-  const activeCharacterNickname = (() => {
-    const activeCharacter = characters.find((item) => item.id === activeCharacterId);
-    if (!activeCharacter) return '\u89d2\u8272';
-    return activeCharacter.nickname || activeCharacter.name || '\u89d2\u8272';
-  })();
-
   const manualSafeAreaTop = Math.max(0, appSettings.safeAreaTop || 0);
   const manualSafeAreaBottom = Math.max(0, appSettings.safeAreaBottom || 0);
   const resolvedSafeAreaTop = manualSafeAreaTop;
@@ -2263,9 +2238,6 @@ const App: React.FC = () => {
             onSelectCharacter={setActiveCharacterId}
             worldBookEntries={worldBookEntries}
             ragApiConfigResolver={resolveRagApiConfig}
-            ttsConfig={ttsConfig}
-            ttsPresets={ttsPresets}
-            setTtsConfig={setTtsConfig}
             pendingHighlightJump={pendingHighlightJump}
             onClearPendingHighlightJump={() => setPendingHighlightJump(null)}
           />
@@ -2370,42 +2342,6 @@ const App: React.FC = () => {
             mode="shelf"
           />
         )}
-        {currentView === AppView.STATS && (
-          <Stats
-            isDarkMode={isDarkMode}
-            dailyReadingMsByDate={dailyReadingMsByDate}
-            themeColor={appSettings.themeColor}
-            completedBookCount={completedBookIds.length}
-            completedBookIds={completedBookIds}
-            completedAtByBookId={completedAtByBookId}
-            readingMsByBookId={readingMsByBookId}
-            activeCharacterNickname={activeCharacterNickname}
-            books={books}
-            apiConfig={apiConfig}
-            personas={personas}
-            activePersonaId={activePersonaId}
-            characters={characters}
-            activeCharacterId={activeCharacterId}
-            worldBookEntries={worldBookEntries}
-          />
-        )}
-        <div className={`flex-1 flex flex-col overflow-hidden ${currentView === AppView.STUDY_HUB ? '' : 'hidden'}`}>
-          <StudyHub
-            isDarkMode={isDarkMode}
-            books={books}
-            personas={personas}
-            activePersonaId={activePersonaId}
-            characters={characters}
-            activeCharacterId={activeCharacterId}
-            worldBookEntries={worldBookEntries}
-            apiConfig={apiConfig}
-            readingExcerptCharCount={appSettings.readerMore.feature.readingExcerptCharCount}
-            readingContextIgnorePanelClip={appSettings.readerMore.feature.readingContextIgnorePanelClip}
-            showNotification={showNotification}
-            ragApiConfigResolver={resolveRagApiConfig}
-            onJumpToBookHighlight={handleJumpToBookHighlight}
-          />
-        </div>
         {currentView === AppView.SETTINGS && (
           <Settings
             isDarkMode={isDarkMode}
@@ -2436,12 +2372,6 @@ const App: React.FC = () => {
             setRagPresets={setRagPresets}
             activeRagPresetId={activeRagPresetId}
             setActiveRagPresetId={setActiveRagPresetId}
-
-            // TTS
-            ttsConfig={ttsConfig}
-            setTtsConfig={setTtsConfig}
-            ttsPresets={ttsPresets}
-            setTtsPresets={setTtsPresets}
           />
         )}
       </div>
@@ -2468,24 +2398,6 @@ const App: React.FC = () => {
           >
             <BookOpen size={22} strokeWidth={currentView === AppView.SHELF ? 2.5 : 2} />
             <span className="text-[10px] font-medium leading-tight">书架</span>
-          </button>
-
-          <button
-            onClick={() => transitionToView(AppView.STATS)}
-            disabled={isViewTransitioning}
-            className={`flex flex-col items-center justify-center gap-0.5 w-14 py-1 transition-all ${currentView === AppView.STATS ? 'text-[#1A1A1A]' : 'text-slate-400 hover:text-slate-600'}`}
-          >
-            <PieChart size={22} strokeWidth={currentView === AppView.STATS ? 2.5 : 2} />
-            <span className="text-[10px] font-medium leading-tight">统计</span>
-          </button>
-
-          <button
-            onClick={() => transitionToView(AppView.STUDY_HUB)}
-            disabled={isViewTransitioning}
-            className={`flex flex-col items-center justify-center gap-0.5 w-14 py-1 transition-all ${currentView === AppView.STUDY_HUB ? 'text-[#1A1A1A]' : 'text-slate-400 hover:text-slate-600'}`}
-          >
-            <Sparkles size={22} strokeWidth={currentView === AppView.STUDY_HUB ? 2.5 : 2} />
-            <span className="text-[10px] font-medium leading-tight">共读集</span>
           </button>
 
           <button

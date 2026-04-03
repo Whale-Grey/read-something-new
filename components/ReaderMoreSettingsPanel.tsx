@@ -1,8 +1,6 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Check, ChevronDown, Trash2, AlertTriangle, Image as ImageIcon, Link as LinkIcon, Loader2, X, RefreshCw, Save, Edit2, Paintbrush, Wrench, MessageSquareText, Eraser, Volume2, Play, Square, Download, HelpCircle, Star, Copy, ChevronUp } from 'lucide-react';
-import { ApiPreset, AppSettings, FavoriteQuote, ReaderBookState, ReaderSummaryCard, TtsConfig, TtsPlaybackState } from '../types';
-import type { TtsPreset } from '../types';
-import { validateTtsConfig } from '../utils/ttsEngine';
+import { ArrowLeft, Check, ChevronDown, Trash2, AlertTriangle, Image as ImageIcon, Link as LinkIcon, Loader2, X, RefreshCw, Save, Edit2, Paintbrush, Wrench, MessageSquareText, Eraser, Download, HelpCircle, Star, Copy, ChevronUp } from 'lucide-react';
+import { ApiPreset, AppSettings, FavoriteQuote, ReaderSummaryCard } from '../types';
 import ResolvedImage from './ResolvedImage';
 import { DEFAULT_NEUMORPHISM_BUBBLE_CSS_PRESET_ID } from '../utils/readerBubbleCssPresets';
 import type { PromptTokenEstimate } from '../utils/readerAiEngine';
@@ -18,22 +16,10 @@ export interface ReaderArchiveOption {
   isCurrent: boolean;
 }
 
-type TabKey = 'appearance' | 'feature' | 'session' | 'tts';
+type TabKey = 'appearance' | 'feature' | 'session';
 type ModalType = 'none' | 'book' | 'chat' | 'bgUrl';
 const PANEL_VIEW_TRANSITION_MS = 420;
 const MODAL_FADE_TRANSITION_MS = 220;
-
-interface TtsExportChapterOption {
-  value: string;
-  label: string;
-}
-
-interface TtsAudiobookExportResult {
-  exportedCount: number;
-  skippedCount: number;
-  zipFileName: string;
-  skippedReasons: string[];
-}
 
 interface Props {
   isDarkMode: boolean;
@@ -77,19 +63,6 @@ interface Props {
   totalMessages: number;
   summaryTaskRunning: boolean;
   sessionPromptTokenEstimate: PromptTokenEstimate;
-  ttsConfig: TtsConfig | null;
-  ttsPresets: TtsPreset[];
-  ttsPlaybackState: TtsPlaybackState | null;
-  onTtsStartFromCurrentPosition: () => void;
-  onTtsStop: () => void;
-  onTtsPresetSelect: (presetId: string) => void;
-  onTtsLanguageChange: (language: string) => void;
-  onTtsSpeedChange: (speed: number) => void;
-  onTtsClearCache: () => void;
-  ttsResumePosition?: ReaderBookState['ttsResumePosition'];
-  onTtsResumeFromSaved: () => void;
-  ttsExportChapterOptions: TtsExportChapterOption[];
-  onTtsExportAudiobook: (chapterIndices: number[], includeSubtitles: boolean) => Promise<TtsAudiobookExportResult>;
   favoriteQuotes: FavoriteQuote[];
   onDeleteFavoriteQuote: (id: string) => void;
   onExportConversation: () => void;
@@ -99,9 +72,8 @@ const TAB_ITEMS: Array<{ key: TabKey; label: string; icon: React.ComponentType<{
   { key: 'appearance', label: '美化', icon: Paintbrush },
   { key: 'feature', label: '功能', icon: Wrench },
   { key: 'session', label: '会话', icon: MessageSquareText },
-  { key: 'tts', label: '朗读', icon: Volume2 },
 ];
-const TAB_ORDER: TabKey[] = ['appearance', 'feature', 'session', 'tts'];
+const TAB_ORDER: TabKey[] = ['appearance', 'feature', 'session'];
 const BUBBLE_CSS_PLACEHOLDER = [
   '可自定义类名：',
   '.rm-bubble',
@@ -460,19 +432,6 @@ const ReaderMoreSettingsPanel: React.FC<Props> = (props) => {
     totalMessages,
     summaryTaskRunning,
     sessionPromptTokenEstimate,
-    ttsConfig,
-    ttsPresets,
-    ttsPlaybackState,
-    onTtsStartFromCurrentPosition,
-    onTtsStop,
-    onTtsPresetSelect,
-    onTtsLanguageChange,
-    onTtsSpeedChange,
-    onTtsClearCache,
-    ttsResumePosition,
-    onTtsResumeFromSaved,
-    ttsExportChapterOptions,
-    onTtsExportAudiobook,
     favoriteQuotes,
     onDeleteFavoriteQuote,
     onExportConversation,
@@ -493,10 +452,6 @@ const ReaderMoreSettingsPanel: React.FC<Props> = (props) => {
   const [selectedChatSummaryCardIds, setSelectedChatSummaryCardIds] = useState<string[]>([]);
   const [pendingArchiveDelete, setPendingArchiveDelete] = useState<ReaderArchiveOption | null>(null);
   const [archiveDeleteDialogClosing, setArchiveDeleteDialogClosing] = useState(false);
-  const [selectedTtsExportChapterValues, setSelectedTtsExportChapterValues] = useState<string[]>([]);
-  const [ttsExportIncludeSubtitles, setTtsExportIncludeSubtitles] = useState(false);
-  const [isExportingTtsAudiobook, setIsExportingTtsAudiobook] = useState(false);
-  const [ttsExportStatus, setTtsExportStatus] = useState<{ text: string; skippedReasons: string[] } | null>(null);
   const [showPanelClipHelp, setShowPanelClipHelp] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
   const [favCopiedId, setFavCopiedId] = useState<string | null>(null);
@@ -515,14 +470,6 @@ const ReaderMoreSettingsPanel: React.FC<Props> = (props) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contentScrollRef = useRef<HTMLDivElement>(null);
   const contentTouchStartYRef = useRef(0);
-
-  useEffect(() => {
-    setSelectedTtsExportChapterValues((prev) => {
-      const validSet = new Set(ttsExportChapterOptions.map((item) => item.value));
-      const next = prev.filter((item) => validSet.has(item));
-      return next.length === prev.length ? prev : next;
-    });
-  }, [ttsExportChapterOptions]);
 
   useEffect(() => {
     if (isOpen) {
@@ -697,37 +644,6 @@ const ReaderMoreSettingsPanel: React.FC<Props> = (props) => {
       className={`w-14 h-8 rounded-lg px-2 text-xs text-right outline-none [appearance:textfield] ${inputClass}`}
     />
   );
-  const handleExportTtsAudiobook = async () => {
-    const chapterIndices = Array.from(
-      new Set<number>(
-        selectedTtsExportChapterValues
-          .map((value) => Number(value))
-          .filter((value) => Number.isFinite(value))
-          .map((value) => Math.floor(value)),
-      ),
-    ).sort((a: number, b: number) => a - b);
-
-    if (chapterIndices.length === 0) {
-      setTtsExportStatus({ text: '请先选择至少一个章节', skippedReasons: [] });
-      return;
-    }
-
-    setIsExportingTtsAudiobook(true);
-    setTtsExportStatus(null);
-    try {
-      const result = await onTtsExportAudiobook(chapterIndices, ttsExportIncludeSubtitles);
-      const skippedNote = result.skippedCount > 0 ? `，跳过 ${result.skippedCount} 章` : '';
-      setTtsExportStatus({
-        text: `导出完成：${result.exportedCount} 章${skippedNote}（${result.zipFileName}）`,
-        skippedReasons: result.skippedReasons || [],
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '导出失败，请稍后重试';
-      setTtsExportStatus({ text: message, skippedReasons: [] });
-    } finally {
-      setIsExportingTtsAudiobook(false);
-    }
-  };
   const openModal = (nextModal: Exclude<ModalType, 'none'>) => {
     if (modalCloseTimerRef.current) window.clearTimeout(modalCloseTimerRef.current);
     setModalClosing(false);
@@ -1687,264 +1603,6 @@ const ReaderMoreSettingsPanel: React.FC<Props> = (props) => {
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
-
-                {tab === 'tts' && (
-                  <div className="space-y-0">
-                    {!ttsConfig || !ttsConfig.apiKey ? (
-                      <div className="py-8 text-center">
-                        <Volume2 size={32} className="mx-auto mb-3 text-slate-400" />
-                        <div className={`text-sm font-bold mb-1 ${headingClass}`}>TTS 未配置</div>
-                        <div className="text-xs text-slate-500">请先在 设置 → TTS 语音合成 中配置 API</div>
-                      </div>
-                    ) : (
-                      <>
-                        {/* 预设选择 */}
-                        <div className="py-5">
-                          <div className={`text-sm font-bold mb-3 ${headingClass}`}>TTS 预设</div>
-                          {ttsPresets.length > 0 ? (
-                            <SingleSelectDropdown
-                              options={ttsPresets.map(p => ({ value: p.id, label: p.name }))}
-                              value={ttsPresets.find(p => p.config.provider === ttsConfig.provider && p.config.voiceId === ttsConfig.voiceId && p.config.model === ttsConfig.model)?.id || ''}
-                              onChange={onTtsPresetSelect}
-                              placeholder="选择 TTS 预设..."
-                              inputClass={inputClass}
-                              cardClass={cardClass}
-                              isDarkMode={isDarkMode}
-                            />
-                          ) : (
-                            <div className="text-xs text-slate-500">请先在 设置 → TTS 语音合成 中保存预设</div>
-                          )}
-                        </div>
-
-                        <div className="w-full h-[1px] bg-slate-300/20 my-0" />
-
-                        {/* 语言 */}
-                        <div className="py-5">
-                          <div className={`text-sm font-bold mb-3 ${headingClass}`}>语言</div>
-                          <SingleSelectDropdown
-                            options={
-                              ttsConfig.provider === 'MINIMAX_T2A'
-                                ? [
-                                    { value: '', label: '自动' },
-                                    { value: 'Chinese', label: '中文' },
-                                    { value: 'Chinese,Yue', label: '粤语' },
-                                    { value: 'English', label: 'English' },
-                                    { value: 'Japanese', label: '日本語' },
-                                    { value: 'Korean', label: '한국어' },
-                                    { value: 'French', label: 'Français' },
-                                    { value: 'Spanish', label: 'Español' },
-                                    { value: 'Russian', label: 'Русский' },
-                                    { value: 'German', label: 'Deutsch' },
-                                    { value: 'Portuguese', label: 'Português' },
-                                    { value: 'Italian', label: 'Italiano' },
-                                    { value: 'Turkish', label: 'Türkçe' },
-                                    { value: 'Arabic', label: 'العربية' },
-                                    { value: 'Hindi', label: 'हिन्दी' },
-                                    { value: 'Thai', label: 'ไทย' },
-                                    { value: 'Vietnamese', label: 'Tiếng Việt' },
-                                    { value: 'Indonesian', label: 'Bahasa Indonesia' },
-                                    { value: 'Malay', label: 'Bahasa Melayu' },
-                                    { value: 'Filipino', label: 'Filipino' },
-                                    { value: 'Dutch', label: 'Nederlands' },
-                                    { value: 'Polish', label: 'Polski' },
-                                    { value: 'Swedish', label: 'Svenska' },
-                                    { value: 'Danish', label: 'Dansk' },
-                                    { value: 'Finnish', label: 'Suomi' },
-                                    { value: 'Norwegian', label: 'Norsk' },
-                                    { value: 'Greek', label: 'Ελληνικά' },
-                                    { value: 'Czech', label: 'Čeština' },
-                                    { value: 'Romanian', label: 'Română' },
-                                    { value: 'Hungarian', label: 'Magyar' },
-                                    { value: 'Hebrew', label: 'עברית' },
-                                    { value: 'Ukrainian', label: 'Українська' },
-                                    { value: 'Bulgarian', label: 'Български' },
-                                    { value: 'Croatian', label: 'Hrvatski' },
-                                    { value: 'Slovak', label: 'Slovenčina' },
-                                    { value: 'Slovenian', label: 'Slovenščina' },
-                                    { value: 'Persian', label: 'فارسی' },
-                                    { value: 'Tamil', label: 'தமிழ்' },
-                                    { value: 'Catalan', label: 'Català' },
-                                    { value: 'Afrikaans', label: 'Afrikaans' },
-                                  ]
-                                : ttsConfig.provider === 'ELEVENLABS'
-                                  ? [
-                                      { value: '', label: '自动' },
-                                      { value: 'zh', label: '中文' },
-                                      { value: 'en', label: 'English' },
-                                      { value: 'ja', label: '日本語' },
-                                      { value: 'ko', label: '한국어' },
-                                      { value: 'fr', label: 'Français' },
-                                      { value: 'es', label: 'Español' },
-                                      { value: 'de', label: 'Deutsch' },
-                                      { value: 'pt', label: 'Português' },
-                                      { value: 'it', label: 'Italiano' },
-                                      { value: 'ru', label: 'Русский' },
-                                      { value: 'ar', label: 'العربية' },
-                                      { value: 'hi', label: 'हिन्दी' },
-                                    ]
-                                  : [
-                                      { value: '', label: '自动' },
-                                      { value: 'zh', label: '中文' },
-                                      { value: 'en', label: 'English' },
-                                      { value: 'ja', label: '日本語' },
-                                      { value: 'ko', label: '한국어' },
-                                    ]
-                            }
-                            value={ttsConfig.language || ''}
-                            onChange={onTtsLanguageChange}
-                            placeholder="选择语言"
-                            inputClass={inputClass}
-                            cardClass={cardClass}
-                            isDarkMode={isDarkMode}
-                          />
-                        </div>
-
-                        <div className="w-full h-[1px] bg-slate-300/20 my-0" />
-
-                        {/* 语速 */}
-                        <div className="py-5">
-                          <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-                            <span className={`text-sm font-bold ${headingClass}`}>语速</span>
-                            <span>{(ttsPlaybackState?.speed ?? ttsConfig.speed).toFixed(1)}x</span>
-                          </div>
-                          <div className="relative h-2">
-                            <div className={`absolute inset-0 rounded-full ${isDarkMode ? 'bg-slate-700' : 'bg-black/5'}`} />
-                            <div
-                              className="absolute inset-y-0 left-0 rounded-full bg-rose-300"
-                              style={{ width: `${(((ttsPlaybackState?.speed ?? ttsConfig.speed) - 0.5) / 1.5) * 100}%` }}
-                            />
-                            <input
-                              type="range"
-                              min="0.5"
-                              max="2.0"
-                              step="0.1"
-                              value={ttsPlaybackState?.speed ?? ttsConfig.speed}
-                              onChange={(e) => onTtsSpeedChange(parseFloat(e.target.value))}
-                              className="app-range absolute top-1/2 -translate-y-1/2 left-0 w-full h-5 bg-transparent appearance-none cursor-pointer z-10"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="w-full h-[1px] bg-slate-300/20 my-0" />
-
-                        {/* 开始/停止朗读 */}
-                        <div className="py-5 space-y-3">
-                          {ttsPlaybackState?.isActive ? (
-                            <button
-                              type="button"
-                              onClick={() => { setTimeout(onTtsStop, 80); }}
-                              className={`w-full h-10 rounded-xl text-sm font-bold text-rose-400 flex items-center justify-center gap-2 ${btnClass} ${activeBtnClass} transition-all`}
-                            >
-                              <Square size={14} />
-                              关闭朗读模式
-                            </button>
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  onTtsStartFromCurrentPosition();
-                                  onClose();
-                                }}
-                                disabled={!!validateTtsConfig(ttsConfig)}
-                                className={`w-full h-10 rounded-xl text-sm font-bold text-rose-400 flex items-center justify-center gap-2 ${btnClass} ${activeBtnClass} transition-all disabled:opacity-50`}
-                              >
-                                <Play size={14} fill="currentColor" />
-                                从当前位置开始朗读
-                              </button>
-                              {ttsResumePosition && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    onTtsResumeFromSaved();
-                                    onClose();
-                                  }}
-                                  className={`w-full h-10 rounded-xl text-sm font-bold text-rose-400 flex items-center justify-center gap-2 ${btnClass} ${activeBtnClass} transition-all`}
-                                >
-                                  <RefreshCw size={14} />
-                                  从上次位置继续朗读
-                                </button>
-                              )}
-                            </>
-                          )}
-                          {validateTtsConfig(ttsConfig) && !ttsPlaybackState?.isActive && (
-                            <div className="text-xs text-slate-500 mt-2 text-center">{validateTtsConfig(ttsConfig)}</div>
-                          )}
-                        </div>
-
-                        <div className="w-full h-[1px] bg-slate-300/20 my-0" />
-
-                        {/* 清空朗读音频缓存 */}
-                        <div className="py-5">
-                          <button
-                            type="button"
-                            onClick={onTtsClearCache}
-                            className={`w-full h-10 rounded-xl text-sm font-bold text-rose-400 flex items-center justify-center gap-2 ${btnClass} ${activeBtnClass} transition-all`}
-                          >
-                            <Trash2 size={14} />
-                            清空全部朗读音频
-                          </button>
-                        </div>
-
-                        <div className="w-full h-[1px] bg-slate-300/20 my-0" />
-
-                        {/* 导出有声书 */}
-                        <div className="py-5 space-y-3">
-                          <div className={`text-sm font-bold ${headingClass}`}>导出有声书</div>
-                          <MultiSelectDropdown
-                            options={ttsExportChapterOptions}
-                            values={selectedTtsExportChapterValues}
-                            onChange={setSelectedTtsExportChapterValues}
-                            placeholder="选择要导出的章节..."
-                            inputClass={inputClass}
-                            cardClass={cardClass}
-                            isDarkMode={isDarkMode}
-                            disabled={isExportingTtsAudiobook}
-                          />
-
-                          <div className={`flex items-center justify-between ${isExportingTtsAudiobook ? 'opacity-55' : ''}`}>
-                            <span className={`text-sm font-bold ${headingClass}`}>同时生成字幕文件（.srt）</span>
-                            <Toggle
-                              checked={ttsExportIncludeSubtitles}
-                              onClick={() => {
-                                if (isExportingTtsAudiobook) return;
-                                setTtsExportIncludeSubtitles((prev) => !prev);
-                              }}
-                              pressedClass={pressedClass}
-                            />
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={handleExportTtsAudiobook}
-                            disabled={isExportingTtsAudiobook || selectedTtsExportChapterValues.length === 0}
-                            className={`w-full h-10 rounded-xl text-sm font-bold text-rose-400 flex items-center justify-center gap-2 ${btnClass} ${activeBtnClass} transition-all disabled:opacity-50`}
-                          >
-                            {isExportingTtsAudiobook ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                            {isExportingTtsAudiobook ? '正在导出...' : '导出选中章节'}
-                          </button>
-
-                          <div className="text-[11px] text-slate-500 leading-relaxed">
-                            导出格式：ZIP（每章 1 个 WAV 音频文件，字幕为独立 SRT 文件）
-                          </div>
-
-                          {ttsExportStatus && (
-                            <div className="text-[11px] leading-relaxed" style={{ color: 'rgb(var(--theme-500) / 1)' }}>
-                              {ttsExportStatus.text}
-                            </div>
-                          )}
-                          {ttsExportStatus && ttsExportStatus.skippedReasons.length > 0 && (
-                            <div className="text-[11px] leading-relaxed space-y-1" style={{ color: 'rgb(var(--theme-500) / 1)' }}>
-                              {ttsExportStatus.skippedReasons.map((item, index) => (
-                                <div key={`${item}-${index}`}>{item}</div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    )}
                   </div>
                 )}
                   </div>

@@ -9,7 +9,8 @@
       "WebFetch(domain:hf-mirror.com)",
       "Bash(curl:*)",
       "Bash(python3:*)",
-      "Bash(wc -l /c/Users/DELL/Downloads/ai-陪读伴侣/components/*.tsx)"
+      "Bash(wc -l /c/Users/DELL/Downloads/ai-陪读伴侣/components/*.tsx)",
+      "Bash(npm run:*)"
     ]
   }
 }

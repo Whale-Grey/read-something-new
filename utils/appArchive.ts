@@ -17,17 +17,10 @@ import {
   getStudyHubStorageUsageBytes,
   restoreStudyHubFromArchive,
 } from './studyHubStorage';
-import {
-  exportTtsAudioForArchive,
-  getTtsAudioStorageUsageBytes,
-  restoreTtsAudioFromArchive,
-} from './ttsAudioStorage';
-
 export type StorageCategoryKey =
   | 'readingText'
   | 'studyHub'
   | 'chatHistory'
-  | 'ttsAudio'
   | 'worldBook'
   | 'personaCharacter'
   | 'appearancePresets'
@@ -44,7 +37,6 @@ export const STORAGE_CATEGORY_ORDER: StorageCategoryKey[] = [
   'readingText',
   'studyHub',
   'chatHistory',
-  'ttsAudio',
   'worldBook',
   'personaCharacter',
   'appearancePresets',
@@ -56,7 +48,6 @@ export const STORAGE_CATEGORY_LABELS: Record<StorageCategoryKey, string> = {
   readingText: '阅读文本信息',
   studyHub: '共读集数据',
   chatHistory: '聊天记录',
-  ttsAudio: 'TTS 朗读音频',
   worldBook: '世界书',
   personaCharacter: '用户与角色人设',
   appearancePresets: '美化预设',
@@ -68,7 +59,6 @@ export const STORAGE_CATEGORY_COLORS: Record<StorageCategoryKey, string> = {
   readingText: '#797D62',
   studyHub: '#997B66',
   chatHistory: '#9B9B7A',
-  ttsAudio: '#7BA7BC',
   worldBook: '#D9AE94',
   personaCharacter: '#F1DCA7',
   appearancePresets: '#FFCB69',
@@ -116,8 +106,6 @@ const classifyLocalStorageKey = (key: string): StorageCategoryKey => {
     || key === 'app_reader_appearance'
     || key === 'app_dark_mode'
     || key === 'app_reader_ai_panel_height_v1'
-    || key === 'app_tts_config'
-    || key === 'app_tts_presets'
   ) {
     return 'appearancePresets';
   }
@@ -240,13 +228,6 @@ export const analyzeAppStorageUsage = async (): Promise<StorageAnalysisResult> =
   const studyHubUsage = await getStudyHubStorageUsageBytes();
   categoryBytes.studyHub += Math.max(0, Number(studyHubUsage.totalBytes || 0));
 
-  try {
-    const ttsAudioUsage = await getTtsAudioStorageUsageBytes();
-    categoryBytes.ttsAudio += Math.max(0, ttsAudioUsage.totalBytes);
-  } catch {
-    // Ignore TTS audio usage failures
-  }
-
   const imageUsage = await getAllImageRefsAndSizes();
   Object.entries(imageUsage).forEach(([imageRef, size]) => {
     const category = imageCategoryMap[imageRef] || 'other';
@@ -293,7 +274,6 @@ export interface AppArchivePayload {
       quizSessions: QuizSession[];
       favoriteQuotes: FavoriteQuote[];
     };
-    ttsAudio?: Record<string, { audio: string; meta: Record<string, unknown> }>;
   };
 }
 
@@ -317,13 +297,6 @@ export const createAppArchivePayload = async (): Promise<AppArchivePayload> => {
     quizSessions: Array.isArray(studyHubRaw?.quizSessions) ? studyHubRaw.quizSessions : [],
     favoriteQuotes: Array.isArray(studyHubRaw?.favoriteQuotes) ? studyHubRaw.favoriteQuotes : [],
   };
-  let ttsAudio: Record<string, { audio: string; meta: Record<string, unknown> }> = {};
-  try {
-    ttsAudio = await exportTtsAudioForArchive() as Record<string, { audio: string; meta: Record<string, unknown> }>;
-  } catch {
-    // ignore TTS audio export failures
-  }
-
   return {
     meta: {
       schema: APP_ARCHIVE_SCHEMA,
@@ -338,7 +311,6 @@ export const createAppArchivePayload = async (): Promise<AppArchivePayload> => {
       chatStore,
       ragIndex,
       studyHub,
-      ttsAudio,
     },
   };
 };
@@ -422,15 +394,6 @@ const normalizeArchivePayload = (raw: unknown): AppArchivePayload => {
     favoriteQuotes: (Array.isArray(studyHubSource.favoriteQuotes) ? studyHubSource.favoriteQuotes : []) as FavoriteQuote[],
   };
 
-  // TTS audio (optional, backwards-compatible with older archives)
-  const ttsAudioSource = isObjectRecord(indexedDbSource.ttsAudio) ? indexedDbSource.ttsAudio : {};
-  const ttsAudio: Record<string, { audio: string; meta: Record<string, unknown> }> = {};
-  Object.entries(ttsAudioSource).forEach(([key, value]) => {
-    if (!key || !isObjectRecord(value)) return;
-    if (typeof value.audio !== 'string') return;
-    ttsAudio[key] = { audio: value.audio as string, meta: (isObjectRecord(value.meta) ? value.meta : {}) as Record<string, unknown> };
-  });
-
   return {
     meta: {
       schema,
@@ -445,7 +408,6 @@ const normalizeArchivePayload = (raw: unknown): AppArchivePayload => {
       chatStore,
       ragIndex,
       studyHub,
-      ttsAudio,
     },
   };
 };
@@ -476,13 +438,6 @@ export const restoreAppArchivePayload = async (raw: unknown): Promise<AppArchive
     await restoreRagIndex(archive.indexedDb.ragIndex);
   }
   await restoreStudyHubFromArchive(archive.indexedDb.studyHub);
-  if (archive.indexedDb.ttsAudio && Object.keys(archive.indexedDb.ttsAudio).length > 0) {
-    try {
-      await restoreTtsAudioFromArchive(archive.indexedDb.ttsAudio);
-    } catch {
-      // ignore TTS audio restore failures
-    }
-  }
   await clearAllImages();
   for (const [imageRef, blob] of imageBlobEntries) {
     await saveImageBlobByRef(imageRef, blob);
