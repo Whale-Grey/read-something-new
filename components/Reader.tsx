@@ -8,7 +8,6 @@ import {
   Check,
   ChevronDown,
   Copy,
-  Highlighter,
   List as ListIcon,
   MessagesSquare,
   MoreHorizontal,
@@ -147,7 +146,6 @@ type CaretDocument = Document & {
 };
 
 const FLOATING_PANEL_TRANSITION_MS = 220;
-const HIGHIGHTER_CLICK_DELAY_MS = 220;
 const TYPOGRAPHY_COLOR_EDITOR_TRANSITION_MS = 180;
 const READER_APPEARANCE_STORAGE_KEY = 'app_reader_appearance';
 const READER_IMAGE_DIMENSION_CACHE_STORAGE_KEY = 'app_reader_image_dimension_cache_v1';
@@ -736,11 +734,13 @@ const Reader: React.FC<ReaderProps> = ({
 }) => {
   const [activeFloatingPanel, setActiveFloatingPanel] = useState<FloatingPanel>('none');
   const [closingFloatingPanel, setClosingFloatingPanel] = useState<FloatingPanel | null>(null);
-  const [isHighlightMode, setIsHighlightMode] = useState(false);
-  const [isHighlighterClickPending, setIsHighlighterClickPending] = useState(false);
   const [highlightColor, setHighlightColor] = useState(DEFAULT_HIGHLIGHT_COLOR);
-  const [highlightColorDraft, setHighlightColorDraft] = useState<RgbValue>(() => hexToRgb(DEFAULT_HIGHLIGHT_COLOR));
-  const [highlightHexInput, setHighlightHexInput] = useState(DEFAULT_HIGHLIGHT_COLOR);
+  const [selectionPopup, setSelectionPopup] = useState<{
+    x: number;
+    y: number;
+    type: 'add' | 'remove';
+    removeCharIdx?: number;
+  } | null>(null);
   const [highlightRangesByChapter, setHighlightRangesByChapter] = useState<Record<string, TextHighlightRange[]>>({});
   const [aiUnderlineRangesByChapter, setAiUnderlineRangesByChapter] = useState<Record<string, TextAiUnderlineRange[]>>({});
   const [bookmarks, setBookmarks] = useState<ReaderBookmark[]>([]);
@@ -754,7 +754,6 @@ const Reader: React.FC<ReaderProps> = ({
   const [isBookmarkModalClosing, setIsBookmarkModalClosing] = useState(false);
   const [bookmarkNameDraft, setBookmarkNameDraft] = useState('');
   const [pendingBookmarkPosition, setPendingBookmarkPosition] = useState<ReaderPositionState | null>(null);
-  const [pendingHighlightRange, setPendingHighlightRange] = useState<TextHighlightRange | null>(null);
   const [isReaderStateHydrated, setIsReaderStateHydrated] = useState(false);
   const [hydratedBookId, setHydratedBookId] = useState<string | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -810,21 +809,9 @@ const Reader: React.FC<ReaderProps> = ({
   const bookmarkModalTimerRef = useRef<number | null>(null);
   const typographyColorEditorTimerRef = useRef<number | null>(null);
   const persistReaderStateTimerRef = useRef<number | null>(null);
-  const highlighterClickTimerRef = useRef<number | null>(null);
   const fontObjectUrlsRef = useRef<string[]>([]);
   const fontLinkNodesRef = useRef<HTMLLinkElement[]>([]);
   const fontCssLoadPromiseByUrlRef = useRef<Map<string, Promise<void>>>(new Map());
-  const highlightDragRef = useRef<{ active: boolean; pointerId: number | null; startIndex: number | null }>({
-    active: false,
-    pointerId: null,
-    startIndex: null,
-  });
-  const highlightTouchDragRef = useRef<{ active: boolean; touchId: number | null; startIndex: number | null }>({
-    active: false,
-    touchId: null,
-    startIndex: null,
-  });
-  const touchPointerDragActiveRef = useRef(false);
   const pendingRestorePositionRef = useRef<ReaderPositionState | null>(null);
   const pendingRestorePassesRef = useRef(0);
   const pendingRestoreStablePassesRef = useRef(0);
@@ -846,7 +833,6 @@ const Reader: React.FC<ReaderProps> = ({
   const [isRestorePositionPending, setIsRestorePositionPending] = useState(false);
 
   const isTocOpen = activeFloatingPanel === 'toc';
-  const isHighlighterPanelOpen = activeFloatingPanel === 'highlighter';
   const isTypographyPanelOpen = activeFloatingPanel === 'typography';
   const isFloatingPanelVisible = activeFloatingPanel !== 'none';
   const conversationKey = useMemo(
@@ -1542,17 +1528,8 @@ const Reader: React.FC<ReaderProps> = ({
     setClosingTypographyColorEditor(null);
   };
 
-  const commitHighlighterDraftColor = () => {
-    const nextColor = rgbToHex(highlightColorDraft);
-    setHighlightColor(nextColor);
-    setHighlightHexInput(nextColor);
-  };
-
-  const closeFloatingPanel = (options?: { discardDraft?: boolean }) => {
+  const closeFloatingPanel = () => {
     if (activeFloatingPanel === 'none') return;
-    if (activeFloatingPanel === 'highlighter' && !options?.discardDraft) {
-      commitHighlighterDraftColor();
-    }
     clearFloatingPanelTimer();
     const panelToClose = activeFloatingPanel;
     setClosingFloatingPanel(panelToClose);
@@ -1563,9 +1540,6 @@ const Reader: React.FC<ReaderProps> = ({
   };
 
   const openFloatingPanel = (panel: Exclude<FloatingPanel, 'none'>) => {
-    if (activeFloatingPanel === 'highlighter' && panel !== 'highlighter') {
-      commitHighlighterDraftColor();
-    }
     clearFloatingPanelTimer();
     setClosingFloatingPanel(null);
     setActiveFloatingPanel(panel);
@@ -1578,12 +1552,6 @@ const Reader: React.FC<ReaderProps> = ({
     }
     setTocPanelTab('toc');
     openFloatingPanel('toc');
-  };
-
-  const openHighlighterPanel = () => {
-    setHighlightColorDraft(hexToRgb(highlightColor));
-    setHighlightHexInput(highlightColor.toUpperCase());
-    openFloatingPanel('highlighter');
   };
 
   const toggleTypographyPanel = () => {
@@ -1609,8 +1577,6 @@ const Reader: React.FC<ReaderProps> = ({
         setTocPanelTab('toc');
         hideBookmarkModalImmediately();
         setHighlightColor(DEFAULT_HIGHLIGHT_COLOR);
-        setHighlightColorDraft(hexToRgb(DEFAULT_HIGHLIGHT_COLOR));
-        setHighlightHexInput(DEFAULT_HIGHLIGHT_COLOR);
         setFontPanelMessage('');
         setFontUrlInput('');
         setFontFamilyInput('');
@@ -1645,14 +1611,9 @@ const Reader: React.FC<ReaderProps> = ({
         setBookmarks(persistedBookmarks);
         hideBookmarkModalImmediately();
         if (persistedColor && isValidHexColor(persistedColor.toUpperCase())) {
-          const normalized = persistedColor.toUpperCase();
-          setHighlightColor(normalized);
-          setHighlightColorDraft(hexToRgb(normalized));
-          setHighlightHexInput(normalized);
+          setHighlightColor(persistedColor.toUpperCase());
         } else {
           setHighlightColor(DEFAULT_HIGHLIGHT_COLOR);
-          setHighlightColorDraft(hexToRgb(DEFAULT_HIGHLIGHT_COLOR));
-          setHighlightHexInput(DEFAULT_HIGHLIGHT_COLOR);
         }
         setFontPanelMessage('');
         setFontUrlInput('');
@@ -1732,8 +1693,6 @@ const Reader: React.FC<ReaderProps> = ({
           setTocPanelTab('toc');
           hideBookmarkModalImmediately();
           setHighlightColor(DEFAULT_HIGHLIGHT_COLOR);
-          setHighlightColorDraft(hexToRgb(DEFAULT_HIGHLIGHT_COLOR));
-          setHighlightHexInput(DEFAULT_HIGHLIGHT_COLOR);
           setFontPanelMessage('');
           setFontUrlInput('');
           setFontFamilyInput('');
@@ -1951,9 +1910,6 @@ const Reader: React.FC<ReaderProps> = ({
       clearTypographyColorEditorTimer();
       if (persistReaderStateTimerRef.current) {
         window.clearTimeout(persistReaderStateTimerRef.current);
-      }
-      if (highlighterClickTimerRef.current) {
-        window.clearTimeout(highlighterClickTimerRef.current);
       }
       if (pendingRestoreRetryTimerRef.current) {
         window.clearTimeout(pendingRestoreRetryTimerRef.current);
@@ -2442,36 +2398,12 @@ const Reader: React.FC<ReaderProps> = ({
     return aiUnderlineRangesByChapter[highlightStorageKey] || [];
   }, [aiUnderlineRangesByChapter, highlightStorageKey]);
 
-  const renderedHighlightRanges = useMemo(() => {
-    if (!pendingHighlightRange || pendingHighlightRange.end <= pendingHighlightRange.start) {
-      return currentHighlightRanges;
-    }
-    return applyHighlightStroke(currentHighlightRanges, pendingHighlightRange);
-  }, [currentHighlightRanges, pendingHighlightRange]);
-
   const paragraphRenderData = useMemo(() => {
     return paragraphMeta.map(item => ({
       paragraph: item,
-      segments: buildParagraphSegments(item, renderedHighlightRanges, currentAiUnderlineRanges),
+      segments: buildParagraphSegments(item, currentHighlightRanges, currentAiUnderlineRanges),
     }));
-  }, [paragraphMeta, renderedHighlightRanges, currentAiUnderlineRanges]);
-
-  useEffect(() => {
-    setPendingHighlightRange(null);
-    highlightDragRef.current = { active: false, pointerId: null, startIndex: null };
-    highlightTouchDragRef.current = { active: false, touchId: null, startIndex: null };
-    touchPointerDragActiveRef.current = false;
-  }, [highlightStorageKey]);
-
-  useEffect(() => {
-    if (!isHighlightMode) {
-      setPendingHighlightRange(null);
-      highlightDragRef.current = { active: false, pointerId: null, startIndex: null };
-      highlightTouchDragRef.current = { active: false, touchId: null, startIndex: null };
-      touchPointerDragActiveRef.current = false;
-      window.getSelection()?.removeAllRanges();
-    }
-  }, [isHighlightMode]);
+  }, [paragraphMeta, currentHighlightRanges, currentAiUnderlineRanges]);
 
   useEffect(() => {
     if (!activeBook?.id || !isReaderStateHydrated || hydratedBookId !== activeBook.id) return;
@@ -2577,6 +2509,30 @@ const Reader: React.FC<ReaderProps> = ({
       console.error('Failed to persist global reader appearance:', error);
     }
   }, [isReaderAppearanceHydrated, readerTypography, readerFontOptions, selectedReaderFontId]);
+
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || sel.rangeCount === 0 || sel.toString().trim() === '') {
+        setSelectionPopup(prev => (prev?.type === 'add' ? null : prev));
+        return;
+      }
+      const range = sel.getRangeAt(0);
+      const articleEl = readerArticleRef.current;
+      if (!articleEl || !articleEl.contains(range.commonAncestorContainer)) {
+        setSelectionPopup(prev => (prev?.type === 'add' ? null : prev));
+        return;
+      }
+      const rect = range.getBoundingClientRect();
+      setSelectionPopup({
+        x: rect.left + rect.width / 2,
+        y: rect.top - 8,
+        type: 'add',
+      });
+    };
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => document.removeEventListener('selectionchange', handleSelectionChange);
+  }, []);
 
   const closeBookmarkModal = () => {
     if (!isBookmarkModalOpen) return;
@@ -2830,7 +2786,6 @@ const Reader: React.FC<ReaderProps> = ({
   };
 
   const handleReaderTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (isHighlightMode) return;
     const startY = e.touches[0]?.clientY ?? null;
     touchStartYRef.current = startY;
     touchLastYRef.current = startY;
@@ -2838,7 +2793,6 @@ const Reader: React.FC<ReaderProps> = ({
   };
 
   const handleReaderTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (isHighlightMode) return;
     if (touchStartYRef.current === null) return;
     if (touchSwitchHandledRef.current) return;
 
@@ -2895,7 +2849,6 @@ const Reader: React.FC<ReaderProps> = ({
   };
 
   const handleReaderTouchEnd = () => {
-    if (isHighlightMode) return;
     touchStartYRef.current = null;
     touchLastYRef.current = null;
     touchSwitchHandledRef.current = false;
@@ -3131,209 +3084,46 @@ const Reader: React.FC<ReaderProps> = ({
   };
 
 
-  const clearHighlightDragState = () => {
-    setPendingHighlightRange(null);
-    highlightDragRef.current = { active: false, pointerId: null, startIndex: null };
-    touchPointerDragActiveRef.current = false;
-  };
-
-  const clearHighlightTouchDragState = () => {
-    setPendingHighlightRange(null);
-    highlightTouchDragRef.current = { active: false, touchId: null, startIndex: null };
-  };
-
-  const findTouchById = (touches: TouchList, touchId: number | null) => {
-    if (touchId === null) return null;
-    for (let i = 0; i < touches.length; i += 1) {
-      const touch = touches.item(i);
-      if (touch && touch.identifier === touchId) {
-        return touch;
-      }
-    }
-    return null;
-  };
-
-  const handleReaderTextPointerDown = (e: React.PointerEvent<HTMLElement>) => {
-    if (!isHighlightMode) return;
-    if (e.pointerType !== 'touch' && e.button !== 0) return;
-
-    const index = getCharacterIndexFromPoint(e.clientX, e.clientY, e.target);
-    if (index === null) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-    window.getSelection()?.removeAllRanges();
-
-    highlightDragRef.current = {
-      active: true,
-      pointerId: e.pointerId,
-      startIndex: index,
-    };
-    setPendingHighlightRange({ start: index, end: index, color: highlightColor });
-    if (e.pointerType === 'touch') {
-      touchPointerDragActiveRef.current = true;
-    }
-    safeSetPointerCapture(e.currentTarget, e.pointerId);
-  };
-
-  const handleReaderTextPointerMove = (e: React.PointerEvent<HTMLElement>) => {
-    if (!isHighlightMode) return;
-
-    const dragState = highlightDragRef.current;
-    if (!dragState.active || dragState.pointerId !== e.pointerId) return;
-
-    const index = getCharacterIndexFromPoint(e.clientX, e.clientY, e.target);
-    if (index === null || dragState.startIndex === null) return;
-
-    e.preventDefault();
-    window.getSelection()?.removeAllRanges();
-
-    setPendingHighlightRange(buildHighlightStroke(dragState.startIndex, index));
-  };
-
-  const handleReaderTextPointerUp = (e: React.PointerEvent<HTMLElement>) => {
-    if (!isHighlightMode) return;
-
-    const dragState = highlightDragRef.current;
-    if (!dragState.active || dragState.pointerId !== e.pointerId) return;
-
-    e.preventDefault();
-    window.getSelection()?.removeAllRanges();
-
-    const index = getCharacterIndexFromPoint(e.clientX, e.clientY, e.target) ?? dragState.startIndex;
-    if (index !== null && dragState.startIndex !== null) {
-      commitHighlightRange(buildHighlightStroke(dragState.startIndex, index));
-    }
-
-    safeReleasePointerCapture(e.currentTarget, e.pointerId);
-    clearHighlightDragState();
-  };
-
-  const handleReaderTextPointerCancel = (e: React.PointerEvent<HTMLElement>) => {
-    safeReleasePointerCapture(e.currentTarget, e.pointerId);
-    clearHighlightDragState();
-  };
-
-  const handleReaderTextTouchStart = (e: React.TouchEvent<HTMLElement>) => {
-    if (!isHighlightMode) return;
-    if (touchPointerDragActiveRef.current) return;
-
-    const touch = e.changedTouches[0];
-    if (!touch) return;
-
-    const index = getCharacterIndexFromPoint(touch.clientX, touch.clientY, e.target);
-    if (index === null) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-    window.getSelection()?.removeAllRanges();
-
-    highlightTouchDragRef.current = {
-      active: true,
-      touchId: touch.identifier,
-      startIndex: index,
-    };
-    setPendingHighlightRange({ start: index, end: index, color: highlightColor });
-  };
-
-  const handleReaderTextTouchMove = (e: React.TouchEvent<HTMLElement>) => {
-    if (!isHighlightMode) return;
-    if (touchPointerDragActiveRef.current) return;
-
-    const dragState = highlightTouchDragRef.current;
-    if (!dragState.active || dragState.touchId === null || dragState.startIndex === null) return;
-
-    const touch = findTouchById(e.touches, dragState.touchId) || findTouchById(e.changedTouches, dragState.touchId);
-    if (!touch) return;
-
-    const pointTarget = document.elementFromPoint(touch.clientX, touch.clientY);
-    const index = getCharacterIndexFromPoint(touch.clientX, touch.clientY, pointTarget);
-    if (index === null) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-    window.getSelection()?.removeAllRanges();
-
-    setPendingHighlightRange(buildHighlightStroke(dragState.startIndex, index));
-  };
-
-  const handleReaderTextTouchEnd = (e: React.TouchEvent<HTMLElement>) => {
-    if (!isHighlightMode) return;
-    if (touchPointerDragActiveRef.current) return;
-
-    const dragState = highlightTouchDragRef.current;
-    if (!dragState.active || dragState.touchId === null || dragState.startIndex === null) return;
-
-    const touch = findTouchById(e.changedTouches, dragState.touchId);
-    const pointTarget = touch ? document.elementFromPoint(touch.clientX, touch.clientY) : e.target;
-    const index = touch
-      ? getCharacterIndexFromPoint(touch.clientX, touch.clientY, pointTarget)
-      : dragState.startIndex;
-    const resolvedIndex = index ?? dragState.startIndex;
-
-    e.preventDefault();
-    e.stopPropagation();
-    window.getSelection()?.removeAllRanges();
-
-    if (resolvedIndex !== null) {
-      commitHighlightRange(buildHighlightStroke(dragState.startIndex, resolvedIndex));
-    }
-
-    clearHighlightTouchDragState();
-  };
-
-  const handleReaderTextTouchCancel = (e: React.TouchEvent<HTMLElement>) => {
-    if (!isHighlightMode) return;
-    if (touchPointerDragActiveRef.current) return;
-    e.preventDefault();
-    e.stopPropagation();
-    clearHighlightTouchDragState();
-  };
-
-  const handleHighlighterButtonClick = () => {
-    if (highlighterClickTimerRef.current) {
-      window.clearTimeout(highlighterClickTimerRef.current);
-      highlighterClickTimerRef.current = null;
-      setIsHighlighterClickPending(false);
-      openHighlighterPanel();
+  const handleApplySelectionHighlight = () => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+      setSelectionPopup(null);
       return;
     }
-
-    setIsHighlighterClickPending(true);
-    highlighterClickTimerRef.current = window.setTimeout(() => {
-      setIsHighlighterClickPending(false);
-      setIsHighlightMode(prev => !prev);
-      highlighterClickTimerRef.current = null;
-    }, HIGHIGHTER_CLICK_DELAY_MS);
+    const range = sel.getRangeAt(0);
+    const startIdx = resolveNodeOffsetToIndex(range.startContainer, range.startOffset, totalParagraphLength);
+    const endIdx = resolveNodeOffsetToIndex(range.endContainer, range.endOffset, totalParagraphLength);
+    if (startIdx !== null && endIdx !== null && endIdx > startIdx) {
+      commitHighlightRange(buildHighlightStroke(startIdx, endIdx));
+    }
+    sel.removeAllRanges();
+    setSelectionPopup(null);
   };
 
-  const updateHighlightDraftChannel = (channel: keyof RgbValue, value: number) => {
-    const next = {
-      ...highlightColorDraft,
-      [channel]: clamp(Number.isNaN(value) ? 0 : value, 0, 255),
-    };
-    setHighlightColorDraft(next);
-    setHighlightHexInput(rgbToHex(next));
+  const handleRemoveHighlight = (charIdx: number) => {
+    setHighlightRangesByChapter(prev => {
+      const existing = prev[highlightStorageKey] || [];
+      const filtered = existing.filter(r => !(r.start <= charIdx && charIdx < r.end));
+      return { ...prev, [highlightStorageKey]: filtered };
+    });
+    setSelectionPopup(null);
   };
 
-  const handleHighlightHexInputChange = (raw: string) => {
-    const normalized = normalizeHexInput(raw);
-    setHighlightHexInput(normalized);
-    if (!isValidHexColor(normalized)) return;
-    setHighlightColorDraft(hexToRgb(normalized));
-  };
-
-  const handleHighlightHexInputBlur = () => {
-    if (isValidHexColor(highlightHexInput)) {
-      setHighlightColorDraft(hexToRgb(highlightHexInput));
+  const handleArticleClick = (e: React.MouseEvent<HTMLElement>) => {
+    const target = e.target as HTMLElement;
+    const segSpan = target.closest('[data-reader-segment="1"]') as HTMLElement | null;
+    if (segSpan && segSpan.style.backgroundColor) {
+      const charIdx = parseInt(segSpan.dataset.start || '0', 10);
+      setSelectionPopup({
+        x: e.clientX,
+        y: e.clientY - 8,
+        type: 'remove',
+        removeCharIdx: charIdx,
+      });
+      e.preventDefault();
       return;
     }
-    setHighlightHexInput(rgbToHex(highlightColorDraft));
-  };
-
-  const applyHighlightColorDraft = () => {
-    commitHighlighterDraftColor();
-    closeFloatingPanel({ discardDraft: true });
+    setSelectionPopup(null);
   };
 
   const updateReaderTypography = (patch: Partial<ReaderTypographyStyle>) => {
@@ -3629,10 +3419,6 @@ const Reader: React.FC<ReaderProps> = ({
     onBack(sessionSnapshot || undefined);
   };
 
-  const isHighlighterVisualActive = isHighlightMode || isHighlighterClickPending;
-  const highlighterToggleColor = isHighlightMode ? highlightColor : '#64748B';
-  const highlighterToggleStyle = { color: highlighterToggleColor } as React.CSSProperties;
-  const typographyToggleStyle = { color: '#64748B' } as React.CSSProperties;
   const floatingPanelAnchorStyle = { top: `${floatingPanelTopPx}px` } as React.CSSProperties;
   const typographyInputClass = `h-8 rounded-md px-2 text-[11px] outline-none ${isDarkMode ? 'bg-[#111827] text-slate-200 placeholder-slate-500' : 'bg-white/70 text-slate-700 placeholder-slate-400'}`;
   const typographySelectTriggerClass = `w-full h-8 rounded-md px-2 flex items-center justify-between cursor-pointer transition-all active:scale-[0.99] ${isDarkMode ? 'bg-[#111827] text-slate-200' : 'bg-white/70 text-slate-700'}`;
@@ -3655,7 +3441,7 @@ const Reader: React.FC<ReaderProps> = ({
     DEFAULT_READER_FONT_OPTIONS.find(option => option.id === DEFAULT_READER_FONT_ID)?.family ||
     DEFAULT_READER_FONT_OPTIONS[0].family;
   const readerScrollStyle = {
-    touchAction: isHighlightMode ? 'none' : 'pan-y',
+    touchAction: 'pan-y',
     backgroundColor: readerTypography.backgroundColor,
   } as React.CSSProperties;
   const readerArticleStyle = {
@@ -3792,13 +3578,6 @@ const Reader: React.FC<ReaderProps> = ({
             title={'\u6dfb\u52a0\u4e66\u7b7e'}
           >
             <Bookmark size={18} />
-          </button>
-          <button
-            onClick={handleHighlighterButtonClick}
-            className={`w-9 h-9 flex items-center justify-center transition-colors rounded-lg ${isHighlighterVisualActive ? (isDarkMode ? 'bg-white/10' : 'bg-black/5') : ''} ${isDarkMode ? 'text-[#d6d4ce]/60 hover:text-[#d6d4ce]' : 'text-[#363233]/50 hover:text-[#363233]'}`}
-            title={'\u8367\u5149\u7b14'}
-          >
-            <Highlighter size={18} />
           </button>
           <button
             onClick={toggleTypographyPanel}
@@ -4050,96 +3829,6 @@ const Reader: React.FC<ReaderProps> = ({
                       </div>
                     )}
                 </div>
-              </div>
-            </div>
-          )}
-          {isHighlighterPanelOpen && (
-            <div
-              className={`absolute z-50 right-4 w-[min(22rem,calc(100vw-2rem))] max-h-[32vh] overflow-hidden rounded-2xl p-2 border ${isDarkMode ? 'bg-[#2d3748] border-slate-600 shadow-2xl' : 'bg-[#e0e5ec] border-white/50 shadow-2xl'} ${closingFloatingPanel === 'highlighter' ? 'reader-flyout-exit' : 'reader-flyout-enter'} flex flex-col`}
-              style={floatingPanelAnchorStyle}
-            >
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-400 px-2 py-1">
-                {'\u8367\u5149\u7b14\u989c\u8272'}
-              </div>
-              <div className="flex-1 overflow-y-auto no-scrollbar px-1 pb-1">
-                <div className="mb-2 flex items-center gap-2">
-                  <div className={`h-10 flex-1 rounded-xl p-1.5 ${isDarkMode ? 'bg-[#1a202c]' : 'neu-pressed'}`}>
-                    <div className="w-full h-full rounded-lg border border-white/20" style={{ backgroundColor: resolveHighlightBackgroundColor(rgbToHex(highlightColorDraft), isDarkMode) }} />
-                  </div>
-                  <input
-                    type="text"
-                    value={highlightHexInput}
-                    onChange={(e) => handleHighlightHexInputChange(e.target.value)}
-                    onBlur={handleHighlightHexInputBlur}
-                    maxLength={7}
-                    spellCheck={false}
-                    className={`h-10 w-28 rounded-lg font-mono text-xs uppercase text-center outline-none ${isDarkMode ? 'bg-[#1a202c] text-slate-200' : 'bg-white/60 text-slate-700'}`}
-                  />
-                </div>
-
-                <div className="grid grid-cols-6 gap-1.5 mb-2">
-                  {PRESET_HIGHLIGHT_COLORS.map(color => (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => {
-                        setHighlightColorDraft(hexToRgb(color));
-                        setHighlightHexInput(color);
-                      }}
-                      className={`h-6 rounded-md border transition-transform hover:scale-[1.03] active:scale-[0.98] ${rgbToHex(highlightColorDraft) === color ? 'border-slate-500' : 'border-white/25'}`}
-                      style={{ backgroundColor: color }}
-                      aria-label={`preset-${color}`}
-                    />
-                  ))}
-                </div>
-
-                <div className="space-y-2">
-                  {(['r', 'g', 'b'] as const).map(channel => (
-                    <div key={channel} className="flex items-center gap-2">
-                      <span className="w-4 text-[10px] font-bold uppercase text-slate-500">{channel}</span>
-                      <div className="relative flex-1 h-2">
-                        <div className={`absolute inset-0 rounded-full ${isDarkMode ? 'bg-slate-700' : 'bg-black/10'}`} />
-                        <div
-                          className="absolute inset-y-0 left-0 rounded-full bg-rose-300"
-                          style={{ width: `${(highlightColorDraft[channel] / 255) * 100}%` }}
-                        />
-                        <input
-                          type="range"
-                          min="0"
-                          max="255"
-                          value={highlightColorDraft[channel]}
-                          onChange={(e) => updateHighlightDraftChannel(channel, parseInt(e.target.value, 10))}
-                          className="app-range absolute top-1/2 -translate-y-1/2 left-0 w-full h-5 bg-transparent appearance-none cursor-pointer z-10"
-                        />
-                      </div>
-                      <input
-                        type="number"
-                        min="0"
-                        max="255"
-                        value={highlightColorDraft[channel]}
-                        onChange={(e) => updateHighlightDraftChannel(channel, parseInt(e.target.value || '0', 10))}
-                        className={`w-11 h-6 text-center text-[10px] rounded-md outline-none ${isDarkMode ? 'bg-[#1a202c] text-slate-200' : 'bg-white/60 text-slate-700'} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-1 flex gap-2 px-1 pb-1">
-                <button
-                  type="button"
-                  onClick={() => closeFloatingPanel({ discardDraft: true })}
-                  className={`flex-1 h-7 rounded-full text-[11px] font-bold ${isDarkMode ? 'bg-[#1a202c] text-slate-300 hover:text-slate-100' : 'neu-btn text-slate-500 hover:text-slate-700'}`}
-                >
-                  {'\u53d6\u6d88'}
-                </button>
-                <button
-                  type="button"
-                  onClick={applyHighlightColorDraft}
-                  className="flex-1 h-7 rounded-full text-[11px] font-bold text-white bg-rose-400 shadow-lg hover:bg-rose-500 active:scale-95 transition-all"
-                >
-                  {'\u5e94\u7528'}
-                </button>
               </div>
             </div>
           )}
@@ -4413,6 +4102,38 @@ const Reader: React.FC<ReaderProps> = ({
         </>
       )}
 
+      {/* Selection highlight popup */}
+      {selectionPopup && (
+        <div
+          className="fixed z-50 flex items-center gap-1 px-3 py-1.5 rounded-full shadow-lg text-sm font-bold"
+          style={{
+            left: selectionPopup.x,
+            top: selectionPopup.y,
+            transform: 'translate(-50%, -100%)',
+            backgroundColor: '#1A1A1A',
+            color: '#fff',
+            pointerEvents: 'auto',
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {selectionPopup.type === 'add' ? (
+            <button
+              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleApplySelectionHighlight(); }}
+              className="flex items-center gap-1 active:opacity-70"
+            >
+              <span style={{ fontSize: '14px' }}>划线</span>
+            </button>
+          ) : (
+            <button
+              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleRemoveHighlight(selectionPopup.removeCharIdx ?? 0); }}
+              className="flex items-center gap-1 active:opacity-70"
+            >
+              <span style={{ fontSize: '14px' }}>取消划线</span>
+            </button>
+          )}
+        </div>
+      )}
+
       <div ref={readerViewportContainerRef} className="relative flex-1 min-h-0">
         <div
           ref={readerScrollRef}
@@ -4427,16 +4148,9 @@ const Reader: React.FC<ReaderProps> = ({
         >
           <article
             ref={readerArticleRef}
-            className={`prose prose-lg max-w-none font-serif leading-loose ${chapterTransitionClass} ${isDarkMode ? 'prose-invert' : ''} ${isHighlightMode ? 'cursor-crosshair' : ''} ${isLoadingMaskVisible ? 'opacity-0 pointer-events-none select-none' : ''}`}
+            className={`prose prose-lg max-w-none font-serif leading-loose ${chapterTransitionClass} ${isDarkMode ? 'prose-invert' : ''} ${isLoadingMaskVisible ? 'opacity-0 pointer-events-none select-none' : ''}`}
             style={readerArticleStyle}
-            onPointerDown={handleReaderTextPointerDown}
-            onPointerMove={handleReaderTextPointerMove}
-            onPointerUp={handleReaderTextPointerUp}
-            onPointerCancel={handleReaderTextPointerCancel}
-            onTouchStart={handleReaderTextTouchStart}
-            onTouchMove={handleReaderTextTouchMove}
-            onTouchEnd={handleReaderTextTouchEnd}
-            onTouchCancel={handleReaderTextTouchCancel}
+            onClick={handleArticleClick}
           >
             {!activeBook && <p className="mb-6 indent-8 opacity-70">{'\u672a\u9009\u62e9\u4e66\u7c4d\uff0c\u8bf7\u8fd4\u56de\u4e66\u67b6\u9009\u62e9\u4e00\u672c\u4e66\u3002'}</p>}
             {activeBook && !isLoadingBookContent && renderItems.length === 0 && (
@@ -4559,14 +4273,6 @@ const Reader: React.FC<ReaderProps> = ({
           )}
         </div>
 
-      </div>
-
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 hidden">
-        <div className="neu-flat text-slate-600 rounded-full flex p-2 gap-4">
-          <button className="p-2 hover:text-rose-400"><Highlighter size={20} /></button>
-          <button className="p-2 hover:text-rose-400"><Bookmark size={20} /></button>
-          <button className="px-3 py-1 bg-rose-400 text-white rounded-full text-sm font-bold shadow-lg">Ask AI</button>
-        </div>
       </div>
 
       <ReaderMessagePanel

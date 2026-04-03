@@ -1088,10 +1088,10 @@ const Library: React.FC<LibraryProps> = ({
     }
     if (type === 'USER') {
       if (isDefaultUser) return <ResolvedImage src={defaultUserImg} alt="Default User" className="w-full h-full object-cover" />;
-      return <UserCircle className="text-slate-300 w-3/5 h-3/5" />;
+      return <UserCircle className="text-white w-3/5 h-3/5" />;
     } else {
       if (isDefaultChar) return <ResolvedImage src={defaultCharImg} alt="Default Char" className="w-full h-full object-cover" />;
-      return <FeatherIcon className="text-slate-300 w-3/5 h-3/5" />;
+      return <FeatherIcon className="text-white w-3/5 h-3/5" />;
     }
   };
 
@@ -1496,7 +1496,7 @@ const Library: React.FC<LibraryProps> = ({
                      onClick={() => setIsCharMenuOpen(!isCharMenuOpen)}
                      className="flex flex-col items-center gap-1 cursor-pointer group"
                   >
-                     <div className={`w-12 h-12 rounded-full flex items-center justify-center overflow-hidden border-2 transition-all ${isDarkMode ? 'bg-[#2d3748] shadow-[5px_5px_10px_#232b39,-5px_-5px_10px_#374357]' : 'bg-[#CCCCCC]'}`} style={{ borderColor: '#CCCCCC' }}>
+                     <div className={`w-12 h-12 rounded-full flex items-center justify-center overflow-hidden transition-all ${isDarkMode ? 'bg-[#2d3748] shadow-[5px_5px_10px_#232b39,-5px_-5px_10px_#374357]' : 'bg-[#CCCCCC]'}`}>
                        {renderAvatar(activeCharacter?.avatar, false, !activeCharacterId, 'CHAR')}
                      </div>
                      <span className="text-[10px] font-bold text-slate-400 group-hover:text-rose-400 transition-colors max-w-[50px] truncate">
@@ -1552,7 +1552,7 @@ const Library: React.FC<LibraryProps> = ({
                      onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                      className="flex flex-col items-center gap-1 cursor-pointer group"
                   >
-                     <div className={`w-12 h-12 rounded-full flex items-center justify-center overflow-hidden border-2 transition-all ${isDarkMode ? 'bg-[#2d3748] shadow-[5px_5px_10px_#232b39,-5px_-5px_10px_#374357]' : 'bg-[#CCCCCC]'}`} style={{ borderColor: '#CCCCCC' }}>
+                     <div className={`w-12 h-12 rounded-full flex items-center justify-center overflow-hidden transition-all ${isDarkMode ? 'bg-[#2d3748] shadow-[5px_5px_10px_#232b39,-5px_-5px_10px_#374357]' : 'bg-[#CCCCCC]'}`}>
                        {renderAvatar(activePersona?.avatar, !activePersonaId, false, 'USER')}
                      </div>
                      <span className="text-[10px] font-bold text-slate-400 group-hover:text-rose-400 transition-colors max-w-[60px] truncate">

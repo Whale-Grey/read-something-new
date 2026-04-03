@@ -3350,7 +3350,7 @@ const ReaderMessagePanel = React.forwardRef<
                   onClick={() => handleBubbleClick(message.id)}
                 >
                   <div className={`max-w-[88%] flex items-end gap-2 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-                    {!isUser && (
+                    {!isUser && !ACHIEVEMENT_PATTERN.test(message.content) && (
                       <div
                         className={`rm-avatar w-7 h-7 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center ${
                           isDarkMode ? 'bg-[#1a202c]' : 'neu-pressed'
