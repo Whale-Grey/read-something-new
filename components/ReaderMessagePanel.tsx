@@ -11,8 +11,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { Achievement, ApiConfig, ApiPreset, AppSettings, Book, Chapter, FavoriteQuote, RagApiConfigResolver, ReaderBookState, ReaderSummaryCard, ReaderHighlightRange, ReaderPositionState, TtsConfig, TtsPlaybackState } from '../types';
-import type { TtsPreset } from '../types';
+import { Achievement, ApiConfig, ApiPreset, AppSettings, Book, Chapter, FavoriteQuote, RagApiConfigResolver, ReaderSummaryCard, ReaderHighlightRange, ReaderPositionState } from '../types';
 import { Character, Persona, WorldBookEntry } from './settings/types';
 import ResolvedImage from './ResolvedImage';
 import ReaderMoreSettingsPanel, { ReaderArchiveOption } from './ReaderMoreSettingsPanel';
@@ -88,24 +87,6 @@ interface ReaderMessagePanelProps {
   isMoreSettingsOpen: boolean;
   onCloseMoreSettings: () => void;
   ragApiConfigResolver?: RagApiConfigResolver;
-  ttsConfig: TtsConfig | null;
-  ttsPresets: TtsPreset[];
-  ttsPlaybackState: TtsPlaybackState | null;
-  onTtsStartFromCurrentPosition: () => void;
-  onTtsStop: () => void;
-  onTtsPresetSelect: (presetId: string) => void;
-  onTtsLanguageChange: (language: string) => void;
-  onTtsSpeedChange: (speed: number) => void;
-  onTtsClearCache: () => void;
-  ttsResumePosition?: ReaderBookState['ttsResumePosition'];
-  onTtsResumeFromSaved: () => void;
-  ttsExportChapterOptions: Array<{ value: string; label: string }>;
-  onTtsExportAudiobook: (chapterIndices: number[], includeSubtitles: boolean) => Promise<{
-    exportedCount: number;
-    skippedCount: number;
-    zipFileName: string;
-    skippedReasons: string[];
-  }>;
 }
 
 interface ContextMenuState {
@@ -613,20 +594,7 @@ const ReaderMessagePanel = React.forwardRef<
   isMoreSettingsOpen,
   onCloseMoreSettings,
   ragApiConfigResolver,
-  ttsConfig,
-  ttsPresets,
-  ttsPlaybackState,
-  onTtsStartFromCurrentPosition,
-  onTtsStop,
-  onTtsPresetSelect,
-  onTtsLanguageChange,
-  onTtsSpeedChange,
-  onTtsClearCache,
-  ttsResumePosition,
-  onTtsResumeFromSaved,
-  ttsExportChapterOptions,
-  onTtsExportAudiobook,
-}, ref) => {    
+}, ref) => {
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const [isAiFabOpening, setIsAiFabOpening] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
@@ -3651,19 +3619,6 @@ const ReaderMessagePanel = React.forwardRef<
         totalMessages={messages.length}
         summaryTaskRunning={summaryTaskRunning}
         sessionPromptTokenEstimate={sessionPromptTokenEstimate}
-        ttsConfig={ttsConfig}
-        ttsPresets={ttsPresets}
-        ttsPlaybackState={ttsPlaybackState}
-        onTtsStartFromCurrentPosition={onTtsStartFromCurrentPosition}
-        onTtsStop={onTtsStop}
-        onTtsPresetSelect={onTtsPresetSelect}
-        onTtsLanguageChange={onTtsLanguageChange}
-        onTtsSpeedChange={onTtsSpeedChange}
-        onTtsClearCache={onTtsClearCache}
-        ttsResumePosition={ttsResumePosition}
-        onTtsResumeFromSaved={onTtsResumeFromSaved}
-        ttsExportChapterOptions={ttsExportChapterOptions}
-        onTtsExportAudiobook={onTtsExportAudiobook}
         favoriteQuotes={currentConversationFavorites}
         onDeleteFavoriteQuote={handleDeleteFavoriteQuoteFromPanel}
         onExportConversation={handleExportConversation}
