@@ -768,37 +768,37 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
               achievements.map((ach) => (
                 <div key={ach.id} className="relative rounded-2xl overflow-hidden"
                   style={{
-                    backgroundColor: '#2a1a0e',
-                    backgroundImage: 'radial-gradient(circle, #3a2818 1px, transparent 1px)',
-                    backgroundSize: '8px 8px',
+                    backgroundColor: '#262928',
+                    backgroundImage: 'radial-gradient(circle, #333736 1.5px, transparent 1.5px)',
+                    backgroundSize: '10px 10px',
                     padding: '16px 14px 12px',
                   }}>
                   {/* 删除按钮 */}
                   <button onClick={() => handleDeleteAchievement(ach.id)}
-                    style={{ position: 'absolute', top: '10px', left: '12px', color: 'rgba(255,220,150,0.4)', fontSize: '16px', lineHeight: 1 }}
+                    style={{ position: 'absolute', top: '10px', left: '12px', color: 'rgba(165,171,170,0.4)', fontSize: '18px', lineHeight: 1 }}
                     className="hover:text-rose-300 transition-colors">
                     ×
                   </button>
                   {/* 达成标签 */}
-                  <div style={{ position: 'absolute', top: '10px', right: '12px', fontSize: '10px', color: 'rgba(255,220,150,0.7)', fontWeight: 700 }}>
+                  <div style={{ position: 'absolute', top: '10px', right: '12px', fontSize: '10px', color: 'rgba(165,171,170,0.7)', fontWeight: 700 }}>
                     ✦ 达成!
                   </div>
                   {/* 图标 + 名称 */}
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginTop: '8px', marginBottom: '10px' }}>
                     <span style={{ fontSize: '32px', lineHeight: 1, flexShrink: 0 }}>{ach.icon}</span>
-                    <span style={{ fontSize: '16px', fontWeight: 900, color: '#ffe4a0', lineHeight: 1.2 }}>{ach.name}</span>
+                    <span style={{ fontSize: '22px', fontWeight: 900, color: '#A5ABAA', lineHeight: 1.2, letterSpacing: '1px', WebkitTextStroke: '6px #1e2120', paintOrder: 'stroke fill' }}>{ach.name}</span>
                   </div>
                   {/* 来源 */}
-                  <div style={{ fontSize: '10px', opacity: 0.4, color: '#ffe4a0', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '10px', opacity: 0.5, color: '#A5ABAA', marginBottom: '8px' }}>
                     {ach.characterName}{ach.bookTitle ? ` · ${ach.bookTitle}` : ''} · {formatDate(ach.createdAt)}
                   </div>
                   {/* 条件 */}
-                  <div style={{ fontSize: '11px', color: '#f5d080', marginBottom: '8px', lineHeight: 1.5 }}>
-                    <div><span style={{ opacity: 0.6 }}>条件 </span>{ach.condition}</div>
+                  <div style={{ fontSize: '11px', color: 'rgba(165,171,170,0.9)', marginBottom: '8px', lineHeight: 1.5 }}>
+                    <div><span style={{ opacity: 0.5 }}>条件 </span>{ach.condition}</div>
                   </div>
                   {/* 评价 */}
                   {ach.comment && (
-                    <div style={{ fontSize: '11px', fontStyle: 'italic', color: '#e5c070', opacity: 0.65, borderTop: '1px solid rgba(255,220,150,0.12)', paddingTop: '8px' }}>
+                    <div style={{ fontSize: '11px', fontStyle: 'italic', color: 'rgba(165,171,170,0.7)', borderTop: '1px solid rgba(165,171,170,0.15)', paddingTop: '8px' }}>
                       "{ach.comment}"
                     </div>
                   )}
