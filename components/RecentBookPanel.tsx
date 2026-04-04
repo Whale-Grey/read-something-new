@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MessageSquare, FileText, HelpCircle, Trophy, Plus, Trash2, Loader2, ChevronLeft, Check, X } from 'lucide-react';
-import { parse as twemojiParse } from '@twemoji/api';
+import twemoji from '@twemoji/api';
+const twemojiParse = twemoji.parse.bind(twemoji);
 import {
   Book, FavoriteQuote, Achievement, QuizSession, Notebook, StudyNote, QuizQuestion, ApiConfig, ReaderHighlightRange,
 } from '../types';
