@@ -118,15 +118,6 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
     return () => window.removeEventListener(CHAT_STORE_UPDATED_EVENT, handler);
   }, [loadChat]);
 
-  // ─── 旁批更新事件 ──────────────────────────────────────────────────────────
-  const NOTE_COMMENT_UPDATED_EVENT = 'note_comment_updated';
-  useEffect(() => {
-    if (activeTab !== '笔记') return;
-    const handler = () => loadNotes();
-    window.addEventListener(NOTE_COMMENT_UPDATED_EVENT, handler);
-    return () => window.removeEventListener(NOTE_COMMENT_UPDATED_EVENT, handler);
-  }, [activeTab, loadNotes]);
-
   // ─── 笔记 ─────────────────────────────────────────────────────────────────
 
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
@@ -172,6 +163,15 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
     }
     setBookHighlights(highlights);
   }, [recentBook.id]);
+
+  // ─── 旁批更新事件 ──────────────────────────────────────────────────────────
+  const NOTE_COMMENT_UPDATED_EVENT = 'note_comment_updated';
+  useEffect(() => {
+    if (activeTab !== '笔记') return;
+    const handler = () => loadNotes();
+    window.addEventListener(NOTE_COMMENT_UPDATED_EVENT, handler);
+    return () => window.removeEventListener(NOTE_COMMENT_UPDATED_EVENT, handler);
+  }, [activeTab, loadNotes]);
 
   const handleSaveNote = async () => {
     if (!noteText.trim()) return;
