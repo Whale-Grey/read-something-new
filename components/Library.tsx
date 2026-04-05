@@ -1515,29 +1515,24 @@ const Library: React.FC<LibraryProps> = ({
           {/* Editable Signature */}
           <div className="-mt-1 mb-1">
             {isEditingSig ? (
-               <div className="flex items-start gap-2">
-                 <textarea
-                   autoFocus
-                   rows={3}
-                   value={tempSig}
-                   onChange={(e) => setTempSig(e.target.value)}
-                   onBlur={handleSaveSig}
-                   onKeyDown={handleKeyDown}
-                   className={`w-full min-w-0 px-2 py-1 rounded-lg outline-none resize-none ${inputClass}`}
-                   style={{ fontSize: '28px', fontWeight: 700, fontFamily: 'Garamond, Georgia, serif', letterSpacing: '0.02em', color: '#1A1A1A', lineHeight: 1.3 }}
-                 />
-                 <button onMouseDown={handleSaveSig} className="text-emerald-500 flex-shrink-0 mt-2"><Check size={16} /></button>
-               </div>
+               <textarea
+                 autoFocus
+                 rows={3}
+                 value={tempSig}
+                 onChange={(e) => setTempSig(e.target.value)}
+                 onBlur={handleSaveSig}
+                 onKeyDown={handleKeyDown}
+                 className={`w-full px-2 py-1 rounded-lg outline-none resize-none ${inputClass}`}
+                 style={{ fontSize: '28px', fontWeight: 700, fontFamily: 'Garamond, Georgia, serif', letterSpacing: '0.02em', color: '#1A1A1A', lineHeight: 1.3 }}
+               />
             ) : (
-               <div
+               <p
                  onClick={() => setIsEditingSig(true)}
-                 className="group flex items-start gap-2 cursor-pointer"
+                 className="w-full cursor-pointer"
+                 style={{ fontSize: '28px', fontWeight: 700, fontFamily: 'Garamond, Georgia, serif', letterSpacing: '0.02em', color: isDarkMode ? '#e2e8f0' : '#1A1A1A', lineHeight: 1.3 }}
                >
-                 <p style={{ fontSize: '28px', fontWeight: 700, fontFamily: 'Garamond, Georgia, serif', letterSpacing: '0.02em', color: isDarkMode ? '#e2e8f0' : '#1A1A1A', lineHeight: 1.3 }}>
-                   {userSignature || <span className="opacity-40 italic" style={{ fontSize: '24px', fontFamily: 'sans-serif', fontWeight: 400 }}>点击编辑签名...</span>}
-                 </p>
-                 <Edit2 size={14} className="opacity-0 group-hover:opacity-40 text-slate-400 flex-shrink-0 mt-3" />
-               </div>
+                 {userSignature || <span className="opacity-40 italic" style={{ fontSize: '20px', fontFamily: 'sans-serif', fontWeight: 400 }}>点击编辑签名...</span>}
+               </p>
             )}
           </div>
 
@@ -1665,7 +1660,7 @@ const Library: React.FC<LibraryProps> = ({
             <h2 className="font-bold mb-4" style={{ fontSize: '24px', color: '#1A1A1A' }}>最近阅读</h2>
             <div
               onClick={() => onOpenBook(recentBook)}
-              className={`${cardClass} app-card-press pt-4 pb-4 pr-5 pl-0 flex gap-5 cursor-pointer rounded-xl relative group`}
+              className={`${cardClass} app-card-press pt-4 pb-4 pr-4 pl-0 flex gap-4 cursor-pointer rounded-xl relative group`}
               style={{ border: 'none' }}
             >
               <div className="flex-shrink-0 overflow-hidden app-card-press-media relative" style={{ width: '120px', height: '160px', borderRadius: '2px', border: `1px solid ${isDarkMode ? '#374151' : '#e5e7eb'}` }}>
