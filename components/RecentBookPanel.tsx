@@ -638,7 +638,7 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
                             }
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className={`text-xs line-clamp-2 ${subText}`}>"{note.highlightRef!.text}"</p>
+                            <p className={`text-xs line-clamp-5 ${subText}`}>"{note.highlightRef!.text}"</p>
                             {note.content && <p className={`text-xs mt-1 line-clamp-1 ${text} opacity-70`}>{note.content}</p>}
                             {lastComment && (
                               <p className={`text-[10px] mt-1 italic line-clamp-1 ${subText}`}>
@@ -678,7 +678,7 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
                             }
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className={`text-xs line-clamp-2 ${subText}`}>"{h.text}"</p>
+                            <p className={`text-xs line-clamp-5 ${subText}`}>"{h.text}"</p>
                             {lastComment && (
                               <p className={`text-[10px] mt-1 italic line-clamp-1 ${subText}`}>
                                 <span className="font-bold not-italic">{lastComment.characterName}：</span>
@@ -1128,44 +1128,53 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
           <>
             {/* Backdrop */}
             <div
-              className="fixed inset-0 z-40 bg-black/50"
+              className="fixed inset-0 z-40 bg-black/40"
               onClick={() => { setHighlightDetail(null); setEditingHighlightNoteId(null); }}
             />
-            {/* Sheet */}
+            {/* Floating card */}
             <div
-              className={`fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl overflow-hidden flex flex-col max-h-[80vh] ${isDarkMode ? 'bg-[#1e2533]' : 'bg-white'}`}
-              style={{ boxShadow: '0 -8px 40px rgba(0,0,0,0.18)' }}
+              className={`fixed inset-x-4 z-50 rounded-3xl overflow-hidden flex flex-col max-h-[78vh] ${isDarkMode ? 'bg-[#1e2533]' : 'bg-white'}`}
+              style={{ top: '50%', transform: 'translateY(-50%)', boxShadow: '0 8px 48px rgba(0,0,0,0.22)' }}
             >
-              {/* Handle */}
-              <div className="flex justify-center pt-3 pb-1">
-                <div className={`w-8 h-1 rounded-full ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
+              {/* Card top bar */}
+              <div className="flex items-center justify-between px-5 pt-4 pb-2">
+                <div className="flex items-center gap-2">
+                  {isUnderline
+                    ? <span className={`text-xs font-bold ${subText}`} style={{ textDecoration: `underline ${hlColor === 'underline-wavy' ? 'wavy' : 'solid'} currentColor`, textDecorationThickness: '1.5px' }}>A</span>
+                    : <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: hlColor }} />
+                  }
+                  <span className={`text-xs font-bold ${subText}`}>划线</span>
+                </div>
+                <button
+                  onClick={() => { setHighlightDetail(null); setEditingHighlightNoteId(null); }}
+                  className={`${subText} active:opacity-60`}
+                >
+                  <X size={16} />
+                </button>
               </div>
 
-              <div className="overflow-y-auto px-5 py-3 flex flex-col gap-4 pb-6">
+              <div className="overflow-y-auto px-5 pb-5 flex flex-col gap-3">
                 {/* Context + highlighted text */}
                 <div
-                  className="rounded-xl px-3 py-3 text-sm leading-relaxed"
+                  className="rounded-2xl px-4 py-3 text-sm leading-relaxed"
                   style={isUnderline ? {
-                    borderLeft: `3px solid ${isDarkMode ? 'rgba(200,200,200,0.4)' : 'rgba(60,60,60,0.3)'}`,
-                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
                   } : {
-                    backgroundColor: `${hlColor}22`,
-                    borderLeft: `3px solid ${hlColor}`,
+                    backgroundColor: `${hlColor}28`,
                   }}
                 >
                   {highlightDetail.ctxBefore && (
-                    <TwemojiText text={`…${highlightDetail.ctxBefore}`} className={`${subText} opacity-60 text-xs`} />
+                    <span className={`${subText} opacity-60 text-xs whitespace-pre-wrap`}>…{highlightDetail.ctxBefore}</span>
                   )}
-                  <TwemojiText
-                    text={hlText}
-                    className={`${text} font-medium`}
+                  <span
+                    className={`${text} font-medium whitespace-pre-wrap`}
                     style={isUnderline ? {
                       textDecoration: `underline ${hlColor === 'underline-wavy' ? 'wavy' : 'solid'} ${isDarkMode ? 'rgba(200,200,200,0.5)' : 'rgba(40,40,40,0.4)'}`,
                       textDecorationThickness: '1.5px',
                     } : {}}
-                  />
+                  >{hlText}</span>
                   {highlightDetail.ctxAfter && (
-                    <TwemojiText text={`${highlightDetail.ctxAfter}…`} className={`${subText} opacity-60 text-xs`} />
+                    <span className={`${subText} opacity-60 text-xs whitespace-pre-wrap`}>{highlightDetail.ctxAfter}…</span>
                   )}
                 </div>
 
@@ -1245,40 +1254,31 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
                 )}
 
                 {/* Action bar */}
-                <div className="flex items-center justify-between pt-1">
-                  <div className="flex items-center gap-3">
-                    {/* Jump to reader */}
-                    <button
-                      onClick={() => { handleJumpToChapterHighlight(chapterKey, charStart); setHighlightDetail(null); }}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${isDarkMode ? 'bg-slate-600 text-slate-200 active:bg-slate-500' : 'bg-slate-100 text-slate-600 active:bg-slate-200'}`}
-                    >
-                      <ExternalLink size={11} />
-                      跳转正文
-                    </button>
-                    {/* Delete */}
-                    <button
-                      onClick={async () => {
-                        if (highlightDetail.type === 'note' && nbObj && noteObj) {
-                          const updated = { ...nbObj, notes: nbObj.notes.filter(n2 => n2.id !== noteObj.id), updatedAt: Date.now() };
-                          await saveNotebook(updated);
-                          // Also delete the raw highlight if content is empty
-                          if (!noteObj.content) await handleDeleteRawHighlight(chapterKey, charStart, charEnd);
-                          else await loadNotes();
-                        } else if (highlightDetail.type === 'raw') {
-                          await handleDeleteRawHighlight(chapterKey, charStart, charEnd);
-                        }
-                        setHighlightDetail(null);
-                      }}
-                      className="text-slate-300 hover:text-rose-400 transition-colors"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
+                <div className="flex items-center gap-3 pt-1">
+                  {/* Jump to reader */}
                   <button
-                    onClick={() => { setHighlightDetail(null); setEditingHighlightNoteId(null); }}
-                    className={`text-xs ${subText}`}
+                    onClick={() => { handleJumpToChapterHighlight(chapterKey, charStart); setHighlightDetail(null); }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${isDarkMode ? 'bg-slate-600 text-slate-200 active:bg-slate-500' : 'bg-slate-100 text-slate-600 active:bg-slate-200'}`}
                   >
-                    <X size={16} />
+                    <ExternalLink size={11} />
+                    跳转正文
+                  </button>
+                  {/* Delete */}
+                  <button
+                    onClick={async () => {
+                      if (highlightDetail.type === 'note' && nbObj && noteObj) {
+                        const updated = { ...nbObj, notes: nbObj.notes.filter(n2 => n2.id !== noteObj.id), updatedAt: Date.now() };
+                        await saveNotebook(updated);
+                        if (!noteObj.content) await handleDeleteRawHighlight(chapterKey, charStart, charEnd);
+                        else await loadNotes();
+                      } else if (highlightDetail.type === 'raw') {
+                        await handleDeleteRawHighlight(chapterKey, charStart, charEnd);
+                      }
+                      setHighlightDetail(null);
+                    }}
+                    className="text-slate-300 hover:text-rose-400 transition-colors ml-auto"
+                  >
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>
