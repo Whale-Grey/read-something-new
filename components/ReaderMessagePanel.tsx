@@ -3432,11 +3432,11 @@ const ReaderMessagePanel = React.forwardRef<
                         className={`rm-bubble ${isUser ? 'rm-bubble-user' : 'rm-bubble-ai'} px-5 py-3 text-sm leading-relaxed transition-colors border-none ${
                           isUser
                             ? isDarkMode
-                              ? 'bg-[rgb(var(--theme-500)_/_1)] text-white rounded-2xl rounded-br shadow-md'
-                              : 'bg-[rgb(var(--theme-400)_/_1)] text-white rounded-2xl rounded-br shadow-[5px_5px_10px_#d1d5db,-5px_-5px_10px_#ffffff]'
+                              ? 'bg-[rgb(var(--theme-500)_/_1)] text-white rounded-2xl rounded-br'
+                              : 'bg-[rgb(var(--theme-400)_/_1)] text-white rounded-2xl rounded-br'
                             : isDarkMode
-                            ? 'bg-[#1a202c] text-slate-300 rounded-2xl rounded-bl shadow-md'
-                            : 'neu-flat text-slate-700 rounded-2xl rounded-bl'
+                            ? 'bg-[#1a202c] text-slate-300 rounded-2xl rounded-tl shadow-md'
+                            : 'neu-flat text-slate-700 rounded-2xl rounded-tl'
                         } ${isUser ? 'reader-bubble-enter-right' : 'reader-bubble-enter-left'} ${isEditingTarget ? 'ring-2 ring-rose-300' : ''}`}
                         style={{ fontSize: `${14 * readerMoreAppearance.bubbleFontSizeScale}px` }}
                         onPointerDown={(event) => handleBubblePointerDown(event, message.id)}
@@ -3532,11 +3532,11 @@ const ReaderMessagePanel = React.forwardRef<
                         className={`rm-bubble ${isUser ? 'rm-bubble-user' : 'rm-bubble-ai'} px-5 py-3 text-sm leading-relaxed transition-colors border-none ${
                           isUser
                             ? isDarkMode
-                              ? 'bg-[rgb(var(--theme-500)_/_1)] text-white rounded-2xl rounded-br shadow-md'
-                              : 'bg-[rgb(var(--theme-400)_/_1)] text-white rounded-2xl rounded-br shadow-[5px_5px_10px_#d1d5db,-5px_-5px_10px_#ffffff]'
+                              ? 'bg-[rgb(var(--theme-500)_/_1)] text-white rounded-2xl rounded-br'
+                              : 'bg-[rgb(var(--theme-400)_/_1)] text-white rounded-2xl rounded-br'
                             : isDarkMode
-                            ? 'bg-[#1a202c] text-slate-300 rounded-2xl rounded-bl shadow-md'
-                            : 'neu-flat text-slate-700 rounded-2xl rounded-bl'
+                            ? 'bg-[#1a202c] text-slate-300 rounded-2xl rounded-tl shadow-md'
+                            : 'neu-flat text-slate-700 rounded-2xl rounded-tl'
                          } ${isUser ? 'reader-bubble-enter-right' : 'reader-bubble-enter-left'} ${
                            isEditingTarget ? 'ring-2 ring-rose-300' : ''
                          }`}
