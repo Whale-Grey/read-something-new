@@ -717,7 +717,11 @@ const sortWorldBookEntriesByCode = (entries: WorldBookEntry[]) =>
     .map((item) => item.entry);
 
 export const applyTemplatePlaceholders = (text: string, charName: string, userName: string): string =>
-  text.replace(/\{\{char\}\}/gi, charName).replace(/\{\{user\}\}/gi, userName);
+  text
+    .replace(/\{\{char\}\}/gi, charName)
+    .replace(/\{\{user\}\}/gi, userName)
+    .replace(/<char>/gi, charName)
+    .replace(/<user>/gi, userName);
 
 export const formatWorldBookSection = (entries: WorldBookEntry[], title: string, charName?: string, userName?: string) => {
   if (entries.length === 0) return `${title}\n（无）`;
