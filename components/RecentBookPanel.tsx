@@ -543,7 +543,7 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
                       </div>
                     )}
                     <div
-                      className={`max-w-[78%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${
+                      className={`max-w-[78%] px-3 py-2 rounded-xl text-sm leading-relaxed ${
                         isUser
                           ? isDarkMode ? 'bg-slate-600 text-slate-100' : 'bg-[#1A1A1A] text-white'
                           : isDarkMode ? 'bg-[#374151] text-slate-200' : 'bg-white text-[#1A1A1A]'
@@ -564,7 +564,7 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
           <div className="p-4 flex flex-col gap-3">
             {/* 新建笔记 */}
             {isAddingNote ? (
-              <div className={`rounded-2xl p-3 flex flex-col gap-2 ${cardBg}`}
+              <div className={`rounded-xl p-3 flex flex-col gap-2 ${cardBg}`}
                 style={{ border: `1px solid ${isDarkMode ? '#4b5563' : '#e5e7eb'}` }}>
                 <textarea
                   autoFocus
@@ -623,7 +623,7 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
                     return (
                       <button
                         key={note.id}
-                        className={`w-full text-left rounded-2xl p-3 ${cardBg} transition-opacity active:opacity-70`}
+                        className={`w-full text-left rounded-xl p-3 ${cardBg} transition-opacity active:opacity-70`}
                         style={{ border: `1px solid ${isDarkMode ? '#4b5563' : '#e5e7eb'}` }}
                         onClick={() => {
                           const { ctxBefore, ctxAfter } = getHighlightContext(note.highlightRef!.chapterKey, note.highlightRef!.start, note.highlightRef!.end);
@@ -663,7 +663,7 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
                     return (
                       <button
                         key={`${h.chapterKey}-${h.start}`}
-                        className={`w-full text-left rounded-2xl p-3 ${cardBg} transition-opacity active:opacity-70`}
+                        className={`w-full text-left rounded-xl p-3 ${cardBg} transition-opacity active:opacity-70`}
                         style={{ border: `1px solid ${isDarkMode ? '#4b5563' : '#e5e7eb'}` }}
                         onClick={() => {
                           const { ctxBefore, ctxAfter } = getHighlightContext(h.chapterKey, h.start, h.end);
@@ -699,7 +699,7 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
               <>
                 <div className={`text-xs font-bold uppercase tracking-wider ${subText} mt-2`}>摘录</div>
                 {quotes.map((q) => (
-                  <div key={q.id} className={`relative rounded-2xl p-3 ${cardBg}`}
+                  <div key={q.id} className={`relative rounded-xl p-3 ${cardBg}`}
                     style={{ border: `1px solid ${isDarkMode ? '#4b5563' : '#e5e7eb'}` }}>
                     <p className={`text-sm line-clamp-3 ${text}`}>"{q.content}"</p>
                     <div className="flex items-center justify-between mt-2">
@@ -718,7 +718,7 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
               <>
                 <div className={`text-xs font-bold uppercase tracking-wider ${subText} mt-2`}>笔记</div>
                 {notebooks.flatMap((nb) => nb.notes.filter(n => !n.highlightRef).map((n) => ({ note: n, nb }))).map(({ note, nb }) => (
-                  <div key={note.id} className={`rounded-2xl p-3 ${cardBg}`}
+                  <div key={note.id} className={`rounded-xl p-3 ${cardBg}`}
                     style={{ border: `1px solid ${isDarkMode ? '#4b5563' : '#e5e7eb'}` }}>
                     {editingNoteId === note.id ? (
                       <div className="flex flex-col gap-2">
@@ -803,7 +803,7 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
             {quizView === 'list' && (
               <div className="p-4 flex flex-col gap-3">
                 {/* 创建按钮 */}
-                <div className={`rounded-2xl p-4 flex flex-col gap-3 ${pressedBg}`}>
+                <div className={`rounded-xl p-4 flex flex-col gap-3 ${pressedBg}`}>
                   <div className={`text-xs font-bold ${subText} uppercase tracking-wider`}>创建新问答</div>
                   <div className="flex gap-3 items-center flex-wrap">
                     <div className="flex items-center gap-2">
@@ -858,7 +858,7 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
                               setQuizView('result');
                             }
                           }}
-                          className={`relative rounded-2xl p-4 cursor-pointer transition-colors ${cardBg}`}
+                          className={`relative rounded-xl p-4 cursor-pointer transition-colors ${cardBg}`}
                           style={{ border: `1px solid ${isDarkMode ? '#4b5563' : '#e5e7eb'}` }}>
                           <div className="flex items-start justify-between">
                             <div>
@@ -974,7 +974,7 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
                     const userAns = activeSession.userAnswers[q.id] || [];
                     const isCorrect = userAns.length === q.correctAnswerIndices.length && userAns.every((a) => q.correctAnswerIndices.includes(a));
                     return (
-                      <div key={q.id} className={`rounded-2xl p-4 ${cardBg}`}
+                      <div key={q.id} className={`rounded-xl p-4 ${cardBg}`}
                         style={{ border: `2px solid ${isCorrect ? '#10b981' : '#f87171'}` }}>
                         <div className="flex items-start gap-2 mb-3">
                           {isCorrect
@@ -1043,7 +1043,7 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
               achievements.map((ach) => (
                 <div
                   key={ach.id}
-                  className="relative rounded-2xl overflow-hidden select-none"
+                  className="relative rounded-xl overflow-hidden select-none"
                   style={{
                     backgroundColor: '#262928',
                     backgroundImage: 'radial-gradient(circle, #333736 1.5px, transparent 1.5px)',
@@ -1080,7 +1080,7 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
                   {/* 长按删除弹窗 */}
                   {longPressAchId === ach.id && (
                     <div
-                      className="absolute inset-0 flex items-center justify-center rounded-2xl"
+                      className="absolute inset-0 flex items-center justify-center rounded-xl"
                       style={{ backgroundColor: 'rgba(30,33,32,0.85)', backdropFilter: 'blur(2px)', zIndex: 20 }}
                       onPointerDown={(e) => e.stopPropagation()}
                     >
@@ -1133,7 +1133,7 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
             />
             {/* Floating card */}
             <div
-              className={`fixed inset-x-4 z-50 rounded-3xl overflow-hidden flex flex-col max-h-[78vh] ${isDarkMode ? 'bg-[#1e2533]' : 'bg-white'}`}
+              className={`fixed inset-x-4 z-50 rounded-2xl overflow-hidden flex flex-col max-h-[78vh] ${isDarkMode ? 'bg-[#1e2533]' : 'bg-white'}`}
               style={{ top: '50%', transform: 'translateY(-50%)', boxShadow: '0 8px 48px rgba(0,0,0,0.22)' }}
             >
               {/* Card top bar */}
@@ -1156,7 +1156,7 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
               <div className="overflow-y-auto px-5 pb-5 flex flex-col gap-3">
                 {/* Context + highlighted text */}
                 <div
-                  className="rounded-2xl px-4 py-3 text-sm leading-relaxed"
+                  className="rounded-xl px-4 py-3 text-sm leading-relaxed"
                   style={isUnderline ? {
                     backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
                   } : {

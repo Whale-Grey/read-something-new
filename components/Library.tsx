@@ -1126,7 +1126,10 @@ const Library: React.FC<LibraryProps> = ({
 
   const recentBook = useMemo(() => {
     const candidates = books.filter(book => typeof book.lastReadAt === 'number' && book.lastReadAt > 0);
-    if (candidates.length === 0) return null;
+    if (candidates.length === 0) {
+      // Fallback: show tutorial book if it exists
+      return books.find(b => isBuiltInBook(b.id)) || null;
+    }
     return [...candidates].sort((a, b) => (b.lastReadAt || 0) - (a.lastReadAt || 0))[0];
   }, [books]);
 
@@ -1234,10 +1237,10 @@ const Library: React.FC<LibraryProps> = ({
 
             <div className="flex-1">
               {!urlInputMode ? (
-                <div className="flex gap-2 flex-wrap">
+                <div className="flex flex-col gap-2">
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 ${btnClass} text-slate-500 hover:text-rose-400`}
+                    className={`w-full py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 ${btnClass} text-slate-500 hover:text-rose-400`}
                   >
                     <FileUp size={12} /> 本地上传
                   </button>
@@ -1245,16 +1248,16 @@ const Library: React.FC<LibraryProps> = ({
 
                   <button
                     onClick={() => setUrlInputMode(true)}
-                    className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 ${btnClass} text-slate-500 hover:text-rose-400`}
+                    className={`w-full py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 ${btnClass} text-slate-500 hover:text-rose-400`}
                   >
                     <Link size={12} /> 网络链接
                   </button>
 
                   <button
                     onClick={() => setLibraryPickerOpen(v => !v)}
-                    className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 ${btnClass} ${libraryPickerOpen ? 'text-rose-400' : 'text-slate-500 hover:text-rose-400'}`}
+                    className={`w-full py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 ${btnClass} ${libraryPickerOpen ? 'text-rose-400' : 'text-slate-500 hover:text-rose-400'}`}
                   >
-                    <Image size={12} /> 图片库
+                    <Image size={12} /> 封面模板库
                   </button>
                 </div>
               ) : (
@@ -1471,7 +1474,7 @@ const Library: React.FC<LibraryProps> = ({
   };
 
   const renderSortMenu = () => (
-    <div className={`absolute right-0 top-12 w-48 rounded-2xl p-3 z-30 shadow-xl border border-slate-400/10 animate-fade-in ${cardClass}`}>
+    <div className={`absolute right-0 top-12 w-48 rounded-xl p-3 z-30 shadow-xl border border-slate-400/10 animate-fade-in ${cardClass}`}>
        <div className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">排序方式</div>
        <div className="space-y-1">
          {[
@@ -1555,7 +1558,7 @@ const Library: React.FC<LibraryProps> = ({
                      </span>
                   </div>
                   {isCharMenuOpen && (
-                    <div className={`absolute left-0 top-14 w-48 rounded-2xl p-2 z-50 animate-fade-in ${cardClass} border border-slate-400/10`}>
+                    <div className={`absolute left-0 top-14 w-48 rounded-xl p-2 z-50 animate-fade-in ${cardClass} border border-slate-400/10`}>
                        <div className="px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
                          切换角色
                        </div>
@@ -1611,7 +1614,7 @@ const Library: React.FC<LibraryProps> = ({
                      </span>
                   </div>
                   {isProfileMenuOpen && (
-                    <div className={`absolute left-0 top-14 w-48 rounded-2xl p-2 z-50 animate-fade-in ${cardClass} border border-slate-400/10`}>
+                    <div className={`absolute left-0 top-14 w-48 rounded-xl p-2 z-50 animate-fade-in ${cardClass} border border-slate-400/10`}>
                        <div className="px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
                          切换用户
                        </div>
@@ -1662,10 +1665,10 @@ const Library: React.FC<LibraryProps> = ({
             <h2 className="font-bold mb-4" style={{ fontSize: '24px', color: '#1A1A1A' }}>最近阅读</h2>
             <div
               onClick={() => onOpenBook(recentBook)}
-              className={`${cardClass} app-card-press pt-4 pb-4 pr-5 pl-0 flex gap-5 cursor-pointer rounded-2xl relative group`}
+              className={`${cardClass} app-card-press pt-4 pb-4 pr-5 pl-0 flex gap-5 cursor-pointer rounded-xl relative group`}
               style={{ border: 'none' }}
             >
-              <div className="flex-shrink-0 overflow-hidden app-card-press-media relative" style={{ width: '120px', height: '160px', borderRadius: '2px', border: '1px solid #1A1A1A' }}>
+              <div className="flex-shrink-0 overflow-hidden app-card-press-media relative" style={{ width: '120px', height: '160px', borderRadius: '2px', border: `1px solid ${isDarkMode ? '#374151' : '#e5e7eb'}` }}>
                 {recentBook.coverUrl ? (
                     <ResolvedImage src={recentBook.coverUrl} alt="Cover" className="w-full h-full object-cover opacity-90" />
                 ) : (
@@ -1683,15 +1686,6 @@ const Library: React.FC<LibraryProps> = ({
                 <p className="text-xs text-slate-400">已读 {recentBook.progress}%</p>
               </div>
 
-              {/* Edit Button for Recent Book - bottom right, no circle */}
-              {!isBuiltInBook(recentBook.id) && (
-              <button
-                onClick={(e) => openEditModal(e, recentBook)}
-                className="absolute bottom-4 right-3 text-slate-300 hover:text-rose-400 opacity-60 hover:opacity-100 transition-all duration-150 active:scale-95"
-              >
-                <Edit2 size={15} />
-              </button>
-              )}
             </div>
           </div>
 
@@ -1745,7 +1739,7 @@ const Library: React.FC<LibraryProps> = ({
                </button>
                {/* Filter Dropdown */}
                {isFilterOpen && (
-                  <div className={`absolute right-0 top-12 w-48 rounded-2xl p-3 z-30 shadow-xl border border-slate-400/10 animate-fade-in ${cardClass}`}>
+                  <div className={`absolute right-0 top-12 w-48 rounded-xl p-3 z-30 shadow-xl border border-slate-400/10 animate-fade-in ${cardClass}`}>
                      <div className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">按标签筛选</div>
                      <div className="flex flex-wrap gap-2">
                         {allTags.map(tag => (
@@ -1801,9 +1795,9 @@ const Library: React.FC<LibraryProps> = ({
         {mode === 'shelf' && (viewMode === 'grid' ? (
            <div key="grid" className="grid grid-cols-2 gap-6 animate-fade-in">
                {/* Add New Book Button (Import) - Only in Grid or List? Let's keep it in both but style differently if list */}
-                <div 
+                <div
                   onClick={openImportModal}
-                  className={`aspect-[3/4] rounded-2xl flex flex-col items-center justify-center hover:text-rose-400 transition-all cursor-pointer border-2 border-transparent hover:border-rose-100/20 active:scale-[0.98] ${pressedClass} ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}
+                  className={`aspect-[3/4] rounded-xl flex flex-col items-center justify-center hover:text-rose-400 transition-all cursor-pointer border-2 border-transparent hover:border-rose-100/20 active:scale-[0.98] ${pressedClass} ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}
                 >
                    <Plus size={32} />
                    <span className="text-sm font-medium mt-2">导入书籍</span>
@@ -1818,8 +1812,8 @@ const Library: React.FC<LibraryProps> = ({
                {/* Grid Books */}
                {sortedBooks.map(book => (
                  <div key={book.id} onClick={() => onOpenBook(book)} className="flex flex-col gap-3 cursor-pointer group">
-                   <div className={`relative aspect-[3/4] rounded-2xl overflow-hidden lib-cover-card-press ${cardClass}`}>
-                     <div className="w-full h-full rounded-2xl overflow-hidden opacity-90 hover:opacity-100 lib-cover-card-media">
+                   <div className={`relative aspect-[3/4] rounded-xl overflow-hidden lib-cover-card-press ${cardClass}`}>
+                     <div className="w-full h-full rounded-xl overflow-hidden opacity-90 hover:opacity-100 lib-cover-card-media">
                         {book.coverUrl ? (
                              <ResolvedImage src={book.coverUrl} className="w-full h-full object-cover" alt={book.title} />
                         ) : (
@@ -1852,6 +1846,10 @@ const Library: React.FC<LibraryProps> = ({
                        <span className="absolute top-2.5 right-2.5 w-3 h-3 rounded-full shadow-md animate-pulse" style={{ backgroundColor: 'rgb(var(--theme-500) / 1)' }} />
                      )}
 
+                     {recentBook && book.id === recentBook.id && (
+                       <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[10px] font-bold text-white/90 backdrop-blur-sm" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>在读</span>
+                     )}
+
                      {!isBuiltInBook(book.id) && (
                      <button
                         onClick={(e) => openEditModal(e, book)}
@@ -1873,7 +1871,7 @@ const Library: React.FC<LibraryProps> = ({
                {/* Add New Book (List Mode) */}
                 <div 
                    onClick={openImportModal}
-                   className={`p-4 rounded-2xl flex items-center justify-center gap-2 hover:text-rose-400 transition-all cursor-pointer border-2 border-transparent hover:border-rose-100/20 active:scale-[0.98] ${pressedClass} ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}
+                   className={`p-4 rounded-xl flex items-center justify-center gap-2 hover:text-rose-400 transition-all cursor-pointer border-2 border-transparent hover:border-rose-100/20 active:scale-[0.98] ${pressedClass} ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}
                 >
                    <Plus size={18} />
                   <span className="text-sm"><span className="font-medium">导入书籍</span> <span className="opacity-60 font-normal">TXT / WORD / PDF / EPUB / MOBI</span></span>
@@ -1884,7 +1882,7 @@ const Library: React.FC<LibraryProps> = ({
                  <div 
                     key={book.id} 
                     onClick={() => onOpenBook(book)}
-                    className={`${cardClass} app-card-press p-4 rounded-2xl flex items-stretch gap-4 group cursor-pointer`}
+                    className={`${cardClass} app-card-press p-4 rounded-xl flex items-stretch gap-4 group cursor-pointer`}
                  >
                     {/* Cover Image instead of Icon */}
                     <div className={`w-14 rounded-lg overflow-hidden flex-shrink-0 shadow-sm relative ${pressedClass} min-h-[4.5rem] app-card-press-media`}>
@@ -1931,6 +1929,9 @@ const Library: React.FC<LibraryProps> = ({
                              <div className="h-full bg-rose-400 rounded-full" style={{ width: `${book.progress}%` }} />
                           </div>
                           <span className="text-[10px] text-slate-400 flex-shrink-0">{book.progress}%</span>
+                          {recentBook && book.id === recentBook.id && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(0,0,0,0.08)', color: isDarkMode ? '#94a3b8' : '#64748b' }}>在读</span>
+                          )}
                        </div>
                     </div>
 
