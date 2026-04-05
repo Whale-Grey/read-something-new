@@ -1537,7 +1537,7 @@ const Library: React.FC<LibraryProps> = ({
           </div>
 
           {/* Dual Avatars Area */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 mt-1.5">
               
               {/* 1. Character Avatar & Menu */}
               <div className="relative" ref={charMenuRef}>
@@ -1660,10 +1660,10 @@ const Library: React.FC<LibraryProps> = ({
             <h2 className="font-bold mb-4" style={{ fontSize: '24px', color: '#1A1A1A' }}>最近阅读</h2>
             <div
               onClick={() => onOpenBook(recentBook)}
-              className={`${cardClass} app-card-press pt-4 pb-4 pr-4 pl-0 flex gap-4 cursor-pointer rounded-xl relative group`}
+              className={`${cardClass} app-card-press pt-4 pb-4 pr-4 pl-0 flex gap-3 cursor-pointer rounded-xl relative group`}
               style={{ border: 'none' }}
             >
-              <div className="flex-shrink-0 overflow-hidden app-card-press-media relative" style={{ width: '120px', height: '160px', borderRadius: '2px', border: `1px solid ${isDarkMode ? '#374151' : '#e5e7eb'}` }}>
+              <div className="flex-shrink-0 overflow-hidden app-card-press-media relative" style={{ width: '96px', height: '128px', borderRadius: '2px', border: `1px solid ${isDarkMode ? '#374151' : '#e5e7eb'}` }}>
                 {recentBook.coverUrl ? (
                     <ResolvedImage src={recentBook.coverUrl} alt="Cover" className="w-full h-full object-cover opacity-90" />
                 ) : (

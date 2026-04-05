@@ -501,8 +501,8 @@ const RecentBookPanel: React.FC<RecentBookPanelProps> = ({
       <div className={`relative grid grid-cols-4 p-1 ${pressedBg}`}>
         {/* slider */}
         <div
-          className={`absolute top-1 bottom-1 rounded-xl transition-transform duration-200 ${isDarkMode ? 'bg-[#2d3748]' : 'bg-[#F3F3F3]'}`}
-          style={{ width: 'calc((100% - 0.5rem) / 4)', transform: `translateX(calc(${tabIdx} * 100%))` }}
+          className={`absolute top-1 bottom-1 rounded-xl ${isDarkMode ? 'bg-[#2d3748]' : 'bg-[#F3F3F3]'}`}
+          style={{ width: 'calc((100% - 0.5rem) / 4 - 4px)', left: `calc(0.25rem + 2px + ${tabIdx} * (100% - 0.5rem) / 4)`, transition: 'left 200ms ease' }}
         />
         {tabs.map(({ key, icon, label }) => (
           <button
