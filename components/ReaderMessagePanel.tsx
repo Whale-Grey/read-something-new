@@ -3574,7 +3574,7 @@ const ReaderMessagePanel = React.forwardRef<
           </div>
           </div>
 
-          <div className="rm-input-area px-3 pt-2 pb-3 relative z-10" style={{ paddingBottom: `${12 + safeBottomInset}px` }}>
+          <div className={`rm-input-area px-3 pt-2 pb-3 relative z-10 ${isDarkMode ? 'bg-[#1c1b19]' : 'bg-[#F6F6F6]'}`} style={{ paddingBottom: `${12 + safeBottomInset}px` }}>
             {toast && (
               <div
                 className={`absolute z-20 left-1/2 -translate-x-1/2 -top-8 px-6 py-2 rounded-full flex items-center gap-2 border backdrop-blur-md text-xs font-bold ${
@@ -3632,7 +3632,7 @@ const ReaderMessagePanel = React.forwardRef<
               </div>
             )}
 
-            <div className={`rm-input-wrap flex items-center gap-2 rounded px-2 py-0.5 ${isDarkMode ? 'bg-[#1a202c] border border-slate-700' : 'bg-slate-100 border border-slate-200'}`}>
+            <div className={`rm-input-wrap flex items-center gap-2 rounded-full px-2 py-0.5 ${isDarkMode ? 'bg-[#1a202c] border border-slate-700' : 'bg-slate-100 border border-slate-200'}`}>
               <input
                 type="text"
                 value={inputText}
