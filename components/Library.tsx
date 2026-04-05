@@ -199,13 +199,13 @@ const Library: React.FC<LibraryProps> = ({
   const [libraryPickerOpen, setLibraryPickerOpen] = useState(false);
 
   const PRESET_COVER_IMAGES = [
-    '/covers/cover-01.jpg',
-    '/covers/cover-02.jpg',
-    '/covers/cover-03.jpg',
-    '/covers/cover-04.jpg',
-    '/covers/cover-05.jpg',
-    '/covers/cover-06.jpg',
-    '/covers/cover-07.jpg',
+    '/read-something/covers/cover-01.jpg',
+    '/read-something/covers/cover-02.jpg',
+    '/read-something/covers/cover-03.jpg',
+    '/read-something/covers/cover-04.jpg',
+    '/read-something/covers/cover-05.jpg',
+    '/read-something/covers/cover-06.jpg',
+    '/read-something/covers/cover-07.jpg',
   ];
   const [tagInput, setTagInput] = useState('');
   const [txtFileUrlMode, setTxtFileUrlMode] = useState(false);
