@@ -28,6 +28,7 @@ import {
   StorageAnalysisResult,
   analyzeAppStorageUsage,
   createAppArchivePayload,
+  deleteOrphanedImages,
   formatBytes,
   restoreAppArchivePayload,
 } from '../utils/appArchive';
@@ -153,6 +154,8 @@ const Settings: React.FC<SettingsProps> = ({
   const [storageDonutReveal, setStorageDonutReveal] = useState(0);
   const [archiveExporting, setArchiveExporting] = useState(false);
   const [archiveImporting, setArchiveImporting] = useState(false);
+  const [orphanCleanLoading, setOrphanCleanLoading] = useState(false);
+  const [orphanCleanResult, setOrphanCleanResult] = useState<{ deletedCount: number; freedBytes: number } | null>(null);
 
   // Theme Classes
   const theme: ThemeClasses = {
@@ -244,6 +247,18 @@ const Settings: React.FC<SettingsProps> = ({
       setStorageAnalysisError('存储分析失败，请稍后重试');
     } finally {
       setStorageAnalysisLoading(false);
+    }
+  };
+
+  const handleCleanOrphanedImages = async () => {
+    setOrphanCleanLoading(true);
+    setOrphanCleanResult(null);
+    try {
+      const result = await deleteOrphanedImages();
+      setOrphanCleanResult(result);
+      if (result.deletedCount > 0) void refreshStorageAnalysis();
+    } finally {
+      setOrphanCleanLoading(false);
     }
   };
 
@@ -645,6 +660,29 @@ const Settings: React.FC<SettingsProps> = ({
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="mt-5 pt-4 border-t border-slate-300/20">
+            <button
+              onClick={handleCleanOrphanedImages}
+              disabled={orphanCleanLoading || storageAnalysisLoading}
+              className={`w-full py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors ${
+                orphanCleanLoading || storageAnalysisLoading
+                  ? 'opacity-50 cursor-not-allowed'
+                  : 'hover:opacity-80 active:scale-[0.98]'
+              } ${isDarkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600'}`}
+            >
+              {orphanCleanLoading
+                ? <><Loader2 size={14} className="animate-spin" />扫描中…</>
+                : '清理孤立图片'}
+            </button>
+            {orphanCleanResult && (
+              <p className="mt-2 text-center text-xs text-slate-500">
+                {orphanCleanResult.deletedCount > 0
+                  ? `已清理 ${orphanCleanResult.deletedCount} 张，释放 ${formatBytes(orphanCleanResult.freedBytes)}`
+                  : '没有发现孤立图片'}
+              </p>
+            )}
           </div>
         </div>
       </div>

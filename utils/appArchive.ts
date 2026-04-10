@@ -7,6 +7,7 @@ import {
 } from './chatHistoryStorage';
 import {
   clearAllImages,
+  deleteImageByRef,
   exportAllImagesAsDataUrls,
   getAllImageRefsAndSizes,
   isImageRef,
@@ -180,6 +181,61 @@ const buildImageCategoryMap = (localStorageSnapshot: Record<string, string>) => 
   }
 
   return imageCategoryMap;
+};
+
+export interface DeleteOrphanedImagesResult {
+  deletedCount: number;
+  freedBytes: number;
+}
+
+// 收集所有现存 imageRef 引用（localStorage + IndexedDB 书籍章节）
+const collectLiveImageRefs = async (): Promise<Set<string>> => {
+  const live = new Set<string>();
+
+  // 1. localStorage：书封面、人设头像、角色头像、聊天背景
+  const snapshot = collectLocalStorageSnapshot();
+  const scanForImageRefs = (value: unknown) => {
+    if (typeof value === 'string' && isImageRef(value)) live.add(value);
+    else if (Array.isArray(value)) value.forEach(scanForImageRefs);
+    else if (value && typeof value === 'object') Object.values(value as Record<string, unknown>).forEach(scanForImageRefs);
+  };
+  Object.values(snapshot).forEach((raw) => {
+    try { scanForImageRefs(JSON.parse(raw)); } catch { /* 非 JSON，跳过 */ }
+  });
+
+  // 2. IndexedDB 书籍章节 blocks
+  try {
+    const allContents = await getAllBookContents();
+    for (const content of Object.values(allContents)) {
+      for (const chapter of content.chapters || []) {
+        for (const block of (chapter as { blocks?: Array<{ type: string; imageRef?: string }> }).blocks || []) {
+          if (block.type === 'image' && isImageRef(block.imageRef)) live.add(block.imageRef!);
+        }
+      }
+    }
+  } catch { /* 忽略，保守处理 */ }
+
+  return live;
+};
+
+export const deleteOrphanedImages = async (): Promise<DeleteOrphanedImagesResult> => {
+  const [allImages, liveRefs] = await Promise.all([
+    getAllImageRefsAndSizes(),
+    collectLiveImageRefs(),
+  ]);
+
+  let deletedCount = 0;
+  let freedBytes = 0;
+
+  for (const [imageRef, size] of Object.entries(allImages)) {
+    if (!liveRefs.has(imageRef)) {
+      await deleteImageByRef(imageRef).catch(() => { /* 静默 */ });
+      deletedCount += 1;
+      freedBytes += size;
+    }
+  }
+
+  return { deletedCount, freedBytes };
 };
 
 export interface StorageBreakdownItem {
